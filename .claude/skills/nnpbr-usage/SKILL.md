@@ -1,12 +1,12 @@
 ---
 name: nnpbr-usage
 description: Run NN-PBR dataset prep, training, inference, and true-BC6 export. Use this when you need commands, expected outputs, or quick troubleshooting.
-argument-hint: "[task] (optional, e.g. train | full | infer | bc6)"
+argument-hint: "[task] (optional, e.g. train | full | infer)"
 ---
 
 # NN-PBR Usage
 
-This skill centralizes “how to run it” so it stays up to date as scripts evolve.
+This skill centralizes "how to run it" so it stays up to date as scripts evolve.
 
 If you change any CLI flags or artifact formats, update:
 - `.claude/skills/nnpbr-usage/SKILL.md`
@@ -14,7 +14,6 @@ If you change any CLI flags or artifact formats, update:
 
 ## Setup (Python deps)
 
-Typical venv setup (adjust to your environment):
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -38,7 +37,7 @@ Expected outputs:
 - `data/freepbr/materials/<material>/dataset_report.json`
 - `data/freepbr/materials/<material>/maps/*_preview.png`
 
-## 2) Train Only (export artifacts)
+## 2) Train Only
 
 ```bash
 source .venv/bin/activate
@@ -54,17 +53,28 @@ python infrerenfe_nural_mateirals.py \
   --log-every 200
 ```
 
-Expected outputs:
-- `runs/train_long/export/metadata.json`
-- `runs/train_long/export/decoder_fp16.bin`
-- `runs/train_long/export/latent_XX_mip_YY.pt`  ← flat (no latents/ subdir)
-- `runs/train_long/export/latent_XX_mip_YY.png`
-- `runs/train_long/training_history.json`
-- `runs/train_long/run_report.json`
+Expected outputs (export layout v4):
+```
+runs/train_long/
+  export/
+    metadata.json          ← runtime (version: 4, lod_biases, decoder params)
+    decoder_fp16.bin       ← runtime MLP weights
+    latent_00.bc6.dds      ← runtime BC6H UF16 DDS (full mip chain, direct from block params)
+    latent_01.bc6.dds      ← ...
+    metadata/
+      decoder_state.pt     ← debug (full PyTorch state dict)
+      latent_00_mip_00.png ← visual preview from soft surrogate decode
+      latent_00_mip_01.png
+      ...
+  training_history.json
+  run_report.json
+```
 
-## 3) Full Run (train + plots + mip0 inference)
+**Key: DDS files are written directly from trained block params (lossless packing, no float32 roundtrip).**
 
-Use small iters for a smoke run:
+## 3) Full Run (train + plots + inference)
+
+Quick smoke run:
 ```bash
 source .venv/bin/activate
 python infrerenfe_nural_mateirals.py \
@@ -72,21 +82,27 @@ python infrerenfe_nural_mateirals.py \
   --reference-pt data/freepbr/materials/<material>/reference_8ch.pt \
   --output-dir runs/full_demo \
   --device auto \
-  --phase1-iters 30 \
-  --phase2-iters 60 \
-  --phase3-iters 0 \
+  --phase1-iters 20 \
+  --phase2-iters 100 \
   --batch-size 1024 \
   --log-every 10 \
-  --interactive-progress \
-  --analysis-batch-size 131072
+  --interactive-progress
+```
+
+Validate that exported latents produce the same output as the trained model:
+```bash
+python infrerenfe_nural_mateirals.py \
+  --mode full \
+  ... \
+  --use-export-latents
 ```
 
 Expected outputs:
-- `runs/full_demo/inference/pbr_preview.png` (albedo/normal/orm panel)
-- `runs/full_demo/analysis/all_analysis.png`  (GT|Neural|Diff + latent previews)
-- `runs/full_demo/analysis/training_loss.png` (loss curves + storage bar)
-- `runs/full_demo/analysis/latent_previews.png`
+- `runs/full_demo/inference/pbr_preview.png`
+- `runs/full_demo/analysis/all_analysis.png`
+- `runs/full_demo/analysis/training_loss.png`
 - `runs/full_demo/analysis/quality_metrics.json`
+- `runs/full_demo/run_report.json`
 
 ## 4) Infer Only (from exported artifacts)
 
@@ -99,81 +115,50 @@ python infrerenfe_nural_mateirals.py \
   --device auto
 ```
 
-Notes:
-- This path is mip0-only (loads `latent_XX_mip_00.pt` and upsamples), so it is a sanity check rather than a perfect runtime simulation.
+Loads latent mip0 from `metadata/latent_XX_mip_00.png` (reverse-mapped to [-1,1]) + `decoder_state.pt`.
 
-## 5) Export True BC6 DDS (GPU-ready, pure Python)
-
-No external tools required. Uses the built-in pure-Python BC6H Mode 11 encoder.
-
-```bash
-source .venv/bin/activate
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export
-```
-
-With verification diff figures (default: enabled):
-```bash
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export \
-  --out-dir runs/train_long/export/true_bc6_dds
-```
-
-Skip verification (faster, no diff PNGs):
-```bash
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export \
-  --no-verify
-```
-
-Encode only specific latent or limit count:
-```bash
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export \
-  --latent-index 0 \
-  --max-latents 2
-```
-
-Force signed mode (BC6H_SF16):
-```bash
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export \
-  --bc6-format SF16
-```
-
-### CLI flags
+## CLI flags reference (`infrerenfe_nural_mateirals.py`)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--export-dir` | required | Dir with `metadata.json` and latent `.pt` files |
-| `--out-dir` | `<export-dir>/true_bc6_dds` | Output directory for DDS files |
-| `--bc6-format` | from metadata | `UF16` or `SF16` |
-| `--latent-index` | all | Encode only this latent index |
-| `--max-latents` | 0 (all) | Cap on number of latents to encode |
-| `--no-verify` | off | Skip BC6H decode + diff verification |
+| `--mode` | `full` | `train` / `full` / `infer` |
+| `--reference-pt` | required (train/full) | Path to `reference_8ch.pt` |
+| `--output-dir` | required (train/full) | Run output root |
+| `--export-dir` | `<output-dir>/export` | Export artifacts location |
+| `--device` | `auto` | `auto` / `cpu` / `cuda` |
+| `--phase1-iters` | 5000 | Warmup iterations |
+| `--phase2-iters` | 200000 | BC-constrained iterations |
+| `--phase3-iters` | 0 | Quantized finetune iterations |
+| `--batch-size` | 4096 | UV/LOD sample batch size |
+| `--latent-res` | `512,256,128,64` | Pyramid base resolutions |
+| `--latent-mips` | `8,7,6,5` | Mip levels per pyramid |
+| `--hidden-dim` | 16 | MLP hidden size |
+| `--endpoint-bits` | 6 | BC6H endpoint quantization bits |
+| `--index-bits` | 3 | BC6H index quantization bits |
+| `--log-every` | 200 | Print loss every N iters |
+| `--interactive-progress` | off | Enable tqdm progress bars |
+| `--infer-size` | `auto` | Output resolution: `auto`, `1024`, `1024x1024` |
+| `--analysis-batch-size` | 131072 | Random batch size for metrics |
+| `--use-export-latents` | off | Full mode: infer from exported PNGs instead of in-memory model (validates export) |
 
-### Expected outputs
+## DDS Export (built-in, no separate step)
 
-- `runs/train_long/export/true_bc6_dds/latent_XX.bc6.dds` — BC6H DDS with full mip chain
-- `runs/train_long/export/true_bc6_dds/true_bc6_export_report.json` — export report with PSNR metrics
-- `runs/train_long/export/true_bc6_dds/latent_XX_mip_YY.diff.png` — diff figures (unless `--no-verify`)
+As of export layout v4, `latent_XX.bc6.dds` files are written automatically by
+`export_trained_artifacts()` — **no separate script call needed**.
 
-### Quality expectations
+The encoder packs the trained block params (endpoints + indices) directly into
+BC6H Mode 11 blocks: `endpoint_q (6-bit) → 11-bit → pack → 128-bit BC6H block`.
+This is lossless with respect to the quantized training representation.
 
-- Smooth PBR latent blocks (typical): PSNR > 35 dB
-- Random/noisy content (worst case): PSNR ~12 dB (inherent BC6H Mode 11 with 8 interpolation steps)
-- Flat regions: near-lossless (max error < 0.001)
-
-### Encoder notes
-
-- Implements BC6H Mode 11 (single-subset, 11-bit endpoints, 3-bit indices per texel)
-- `[-1, 1]` tensors remapped to `[0, 1]` for UF16, used as-is for SF16
-- Integer interpolation: `(ep0*(64-w) + ep1*w + 32) >> 6` per the BC6H spec
-- No subprocess calls — pure Python + numpy + torch
+`export_true_bc6_dds.py` is now an informational stub:
+```bash
+python export_true_bc6_dds.py --export-dir runs/train_long/export
+# prints DDS file list and sizes; does nothing for v4 exports
+```
 
 ## Troubleshooting (quick)
 
-- If dataset prep fails to find maps, inspect `data/.../extracted/` and adjust keywords or `--variant-keyword`.
-- If normals look inverted, check the DirectX/OpenGL Y-flip heuristic (filename contains `dx`/`directx`).
-- If BC6 PSNR is unexpectedly low, check that latent tensors are locally smooth (rough/noisy latents compress poorly with 8 interpolation steps).
-
+- **NaN in phase2**: keep `--phase1-iters` ≤ 20 (larger warmup destabilizes BC init)
+- **Wrong storage size**: check `latent_*.bc6.dds` exist in export root — `_collect_neural_storage_bytes` uses actual DDS sizes when present
+- If dataset prep fails, inspect `data/.../extracted/` and adjust `--variant-keyword`
+- If normals look inverted, check DX/GL Y-flip heuristic (filename contains `dx`/`directx`)

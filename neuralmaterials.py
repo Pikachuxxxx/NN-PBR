@@ -9,8 +9,10 @@ Pipeline:
 
 Notes:
 - Training uses a BC6-inspired surrogate; it is not a bit-exact BC6H codec.
-- Exported latent tensors (.pt) and previews (.png) land flat in the export dir.
-- True BC6 DDS output: run export_true_bc6_dds.py (pure Python, no external tools).
+- export_trained_artifacts() packs block params directly to BC6H Mode 11 DDS —
+  no float32 decode/re-encode roundtrip.  PNG previews are kept for visual inspection.
+- Export layout v4: runtime files in root (latent_XX.bc6.dds, decoder_fp16.bin,
+  metadata.json); debug files in metadata/ (decoder_state.pt, latent_XX_mip_YY.png).
 """
 
 from __future__ import annotations
@@ -813,13 +815,179 @@ def decode_quantized_params_to_mip(qp: dict, partition_bank: torch.Tensor) -> to
     return tex
 
 
+# ---------------------------------------------------------------------------
+# BC6H DDS helpers (Mode 11, single-subset, 11-bit endpoints, 3-bit indices)
+# ---------------------------------------------------------------------------
+
+import struct as _struct
+
+_DDS_MAGIC = b"DDS "
+_DDSD_CAPS = 0x1
+_DDSD_HEIGHT = 0x2
+_DDSD_WIDTH = 0x4
+_DDSD_PIXELFORMAT = 0x1000
+_DDSD_MIPMAPCOUNT = 0x20000
+_DDSD_LINEARSIZE = 0x80000
+_DDSCAPS_COMPLEX = 0x8
+_DDSCAPS_TEXTURE = 0x1000
+_DDSCAPS_MIPMAP = 0x400000
+_DDPF_FOURCC = 0x4
+_DXGI_BC6H_UF16 = 95
+_DXGI_BC6H_SF16 = 96
+_D3D10_TEXTURE2D = 3
+
+
+def _pack_bc6h_mode11_block(
+    ep0: Tuple[int, int, int],
+    ep1: Tuple[int, int, int],
+    indices: List[int],
+    signed_mode: bool,
+) -> bytes:
+    """Pack one BC6H Mode 11 block into 16 bytes (LSB-first)."""
+    def _s11u(v: int) -> int:
+        return v & 0x7FF  # two's-complement 11-bit → unsigned bits
+
+    if signed_mode:
+        rw, gw, bw = _s11u(ep0[0]), _s11u(ep0[1]), _s11u(ep0[2])
+        rx, gx, bx = _s11u(ep1[0]), _s11u(ep1[1]), _s11u(ep1[2])
+    else:
+        rw, gw, bw = ep0[0] & 0x7FF, ep0[1] & 0x7FF, ep0[2] & 0x7FF
+        rx, gx, bx = ep1[0] & 0x7FF, ep1[1] & 0x7FF, ep1[2] & 0x7FF
+
+    block = 0x7  # mode bits [4:0] = 0b00111
+    block |= (rw & 0x3FF) << 5
+    block |= (rx & 0x3FF) << 15
+    block |= (gw & 0x3FF) << 25
+    block |= (gx & 0x3FF) << 35
+    block |= (bw & 0x3FF) << 45
+    block |= (bx & 0x3FF) << 55
+    block |= ((rw >> 10) & 1) << 65
+    block |= ((rx >> 10) & 1) << 66
+    block |= ((gw >> 10) & 1) << 67
+    block |= ((gx >> 10) & 1) << 68
+    block |= ((bw >> 10) & 1) << 69
+    block |= ((bx >> 10) & 1) << 70
+
+    # anchor texel (2 bits, MSB implicit 0), then indices 1..15 (3 bits each)
+    bit_pos = 71
+    block |= (int(indices[0]) & 0x3) << bit_pos
+    bit_pos += 2
+    for i in range(1, 16):
+        block |= (int(indices[i]) & 0x7) << bit_pos
+        bit_pos += 3
+    assert bit_pos == 118
+
+    return block.to_bytes(16, byteorder="little")
+
+
+def _write_bc6h_dds(
+    mip_bytes_list: List[bytes],
+    w0: int,
+    h0: int,
+    out_path: Path,
+    signed_mode: bool,
+):
+    """Write a BC6H DDS file with a full mip chain."""
+    mip_count = len(mip_bytes_list)
+    dxgi_format = _DXGI_BC6H_SF16 if signed_mode else _DXGI_BC6H_UF16
+    bw0, bh0 = max(1, (w0 + 3) // 4), max(1, (h0 + 3) // 4)
+    linear_size = bw0 * bh0 * 16
+
+    flags = _DDSD_CAPS | _DDSD_HEIGHT | _DDSD_WIDTH | _DDSD_PIXELFORMAT | _DDSD_LINEARSIZE
+    if mip_count > 1:
+        flags |= _DDSD_MIPMAPCOUNT
+    caps = _DDSCAPS_TEXTURE
+    if mip_count > 1:
+        caps |= _DDSCAPS_COMPLEX | _DDSCAPS_MIPMAP
+
+    dds_header = _struct.pack(
+        "<IIIIIII11I",
+        124, flags, h0, w0, linear_size, 0, mip_count, *([0] * 11),
+    )
+    dds_pixelformat = _struct.pack("<II4sIIIII", 32, _DDPF_FOURCC, b"DX10", 0, 0, 0, 0, 0)
+    dds_caps = _struct.pack("<IIIII", caps, 0, 0, 0, 0)
+    dx10_header = _struct.pack("<IIIII", dxgi_format, _D3D10_TEXTURE2D, 0, 1, 0)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("wb") as f:
+        f.write(_DDS_MAGIC)
+        f.write(dds_header)
+        f.write(dds_pixelformat)
+        f.write(dds_caps)
+        f.write(dx10_header)
+        for mip_data in mip_bytes_list:
+            f.write(mip_data)
+
+
+def _pack_mip_blocks_to_bc6h_bytes(params: dict, signed_mode: bool) -> bytes:
+    """
+    Directly pack quantized surrogate block params into BC6H Mode 11 bytes.
+
+    The surrogate uses 2-subset blocks (4 endpoints); Mode 11 is single-subset.
+    We use subset-0 endpoints (indices 0 and 1) for ep0/ep1.
+
+    Endpoint scaling:
+      UF16: 6-bit [0,63] -> 11-bit [0,2047]
+      SF16: 6-bit [0,63] (representing [-1,1]) -> 11-bit signed [-1023,1023]
+    """
+    if np is None:
+        raise RuntimeError("numpy is required for BC6H block packing.")
+    ep_q = params["endpoints_q"].numpy()  # [NB, 4, 3] int16
+    idx_q = params["indices_q"].numpy()   # [NB, 16] uint8
+    ep_bits = int(params["endpoint_bits"])
+    ep_max = (1 << ep_bits) - 1  # 63 for 6-bit
+
+    if signed_mode:
+        # 6-bit [0,63] encodes [-1,1] mapped through sigmoid; back to SF16 [-1023,1023]
+        ep_11 = (
+            (ep_q.astype("float64") / ep_max * 2.0 - 1.0) * 1023.0
+        ).round().astype("int32").clip(-1023, 1023)
+    else:
+        # 6-bit [0,63] encodes [0,1]; scale to UF16 [0,2047]
+        ep_11 = (
+            ep_q.astype("float64") / ep_max * 2047.0
+        ).round().astype("int32").clip(0, 2047)
+
+    out = bytearray()
+    for bi in range(ep_q.shape[0]):
+        ep0 = ep_11[bi, 0]  # subset-0 ep0, shape [3]
+        ep1 = ep_11[bi, 1]  # subset-0 ep1, shape [3]
+        idxs = idx_q[bi].tolist()
+
+        # Enforce anchor constraint: index[0] MSB must be 0 (< 4)
+        if idxs[0] > 3:
+            ep0, ep1 = ep1, ep0
+            idxs = [7 - x for x in idxs]
+
+        out.extend(_pack_bc6h_mode11_block(
+            (int(ep0[0]), int(ep0[1]), int(ep0[2])),
+            (int(ep1[0]), int(ep1[1]), int(ep1[2])),
+            idxs,
+            signed_mode=signed_mode,
+        ))
+    return bytes(out)
+
+
 @torch.no_grad()
 def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Path):
+    """
+    Export all runtime artifacts to out_dir.
+
+    Runtime files (export root):
+      decoder_fp16.bin, metadata.json, latent_XX.bc6.dds
+
+    Debug files (metadata/ subdir):
+      decoder_state.pt, latent_XX_mip_YY.png
+
+    DDS files are built directly from the trained block params — no float32
+    decode/re-encode roundtrip.  PNG previews are decoded from the soft
+    surrogate for visual inspection only.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     meta_dir = out_dir / "metadata"
     meta_dir.mkdir(parents=True, exist_ok=True)
 
-    # Export decoder weights.
+    # --- Decoder weights ---
     state = model.decoder.state_dict()
     torch.save(state, meta_dir / "decoder_state.pt")
     flat = []
@@ -828,29 +996,37 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
     fp16_blob = torch.cat(flat).cpu().numpy().tobytes()
     (out_dir / "decoder_fp16.bin").write_bytes(fp16_blob)
 
-    # Latent tensors and previews go into metadata/ subdir.
+    # --- Latent DDS (direct from block params) + PNG previews ---
     latent_files = []
     model.set_freeze_bc_features(True)
     for i, pyr in enumerate(model.bc_pyramids):
-        mips = pyr.decode_mips(hard_partition=True)
-        for m, tex in enumerate(mips):
+        # Block params: no float32 decode needed for the DDS
+        all_params = pyr.export_quantized_params()
+        # Decoded mips: only used for PNG previews
+        decoded_mips = pyr.decode_mips(hard_partition=True)
+
+        mip_bytes_list = []
+        for m, (params, tex) in enumerate(zip(all_params, decoded_mips)):
             stem = f"latent_{i:02d}_mip_{m:02d}"
-            pt_path = meta_dir / f"{stem}.pt"
-            png_path = meta_dir / f"{stem}.png"
-            torch.save(tex.detach().cpu(), pt_path)
-            save_chw_png_ldr(tex, png_path)
-            latent_files.append(
-                {
-                    "latent_index": i,
-                    "mip_index": m,
-                    "shape_chw": list(tex.shape),
-                    "pt": f"metadata/{stem}.pt",
-                    "png": f"metadata/{stem}.png",
-                }
-            )
+            # PNG preview from soft-decoded mip
+            save_chw_png_ldr(tex, meta_dir / f"{stem}.png")
+            # BC6H bytes packed directly from quantized block params
+            mip_bytes_list.append(_pack_mip_blocks_to_bc6h_bytes(params, model.bc6_signed_mode))
+            latent_files.append({
+                "latent_index": i,
+                "mip_index": m,
+                "shape_chw": list(tex.shape),
+                "png": f"metadata/{stem}.png",
+            })
+
+        # Write DDS to export root
+        W0, H0 = int(all_params[0]["w"]), int(all_params[0]["h"])
+        dds_path = out_dir / f"latent_{i:02d}.bc6.dds"
+        _write_bc6h_dds(mip_bytes_list, W0, H0, dds_path, signed_mode=model.bc6_signed_mode)
+        print(f"[export] latent {i:02d}: {W0}×{H0}  mips={len(mip_bytes_list)}  -> {dds_path.name}")
 
     meta = {
-        "version": 3,
+        "version": 4,
         "latent_count": model.n_latent,
         "latent_resolutions": model.latent_resolutions,
         "lod_biases": model.lod_biases,

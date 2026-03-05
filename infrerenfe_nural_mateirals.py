@@ -237,24 +237,33 @@ def _render_mip0_from_export(
 ) -> torch.Tensor:
     meta = json.loads((export_dir / "metadata.json").read_text())
 
-    # Load mip0 for each latent using paths from metadata (relative to export_dir)
+    # Load mip0 for each latent from PNG previews and reverse the LDR mapping
+    # (save_chw_png_ldr maps [-1,1] -> [0,255]; invert: [0,255] -> [0,1] -> [-1,1])
     mip0_entries = sorted(
         [e for e in meta.get("latent_files", []) if int(e["mip_index"]) == 0],
         key=lambda e: int(e["latent_index"]),
     )
     latents = []
     for e in mip0_entries:
-        p = export_dir / e["pt"]
+        png_rel = e.get("png")
+        if not png_rel:
+            raise RuntimeError(
+                f"No PNG path in metadata for latent {e['latent_index']} mip 0. "
+                "Re-export with current code to regenerate metadata."
+            )
+        p = export_dir / png_rel
         if not p.exists():
-            # Legacy fallback: simple filename in export_dir or latents/
-            fname = Path(e["pt"]).name
-            for candidate in [export_dir / fname, export_dir / "latents" / fname]:
+            # Legacy fallback: same filename in flat export_dir or metadata/
+            fname = Path(png_rel).name
+            for candidate in [export_dir / fname, export_dir / "metadata" / fname]:
                 if candidate.exists():
                     p = candidate
                     break
             else:
-                raise RuntimeError(f"Missing mip0 latent tensor: {e['pt']}")
-        latents.append(torch.load(p, map_location="cpu").float())
+                raise RuntimeError(f"Missing mip0 latent PNG: {png_rel}")
+        arr = np.array(Image.open(p).convert("RGB")).astype(np.float32) / 255.0
+        t = torch.from_numpy(arr).permute(2, 0, 1) * 2.0 - 1.0  # [3,H,W] in [-1,1]
+        latents.append(t)
     out_h, out_w = _infer_output_resolution(meta, latents, infer_size=infer_size)
     upsampled = [
         F.interpolate(t.unsqueeze(0), size=(out_h, out_w), mode="bilinear", align_corners=False).squeeze(0)
@@ -496,8 +505,16 @@ def main():
     ap.add_argument("--infer-size", type=str, default="auto", help="'auto', '1024', or '1024x1024'")
     ap.add_argument("--analysis-batch-size", type=int, default=131072, help="Extra random UV/LOD batch size for analysis metrics in full mode.")
 
-    ap.add_argument("--export-true-bc6", action="store_true")
+    ap.add_argument("--export-true-bc6", action="store_true",
+                    help="(Deprecated) DDS files are now written by export automatically.")
     ap.add_argument("--bc6-format", type=str, default=None)
+    ap.add_argument(
+        "--use-export-latents", action="store_true",
+        help=(
+            "In full mode: run inference from exported PNG latents + decoder_state.pt "
+            "instead of the in-memory trained model. Validates that the export is faithful."
+        ),
+    )
     args = ap.parse_args()
 
     mode = args.mode
@@ -568,8 +585,23 @@ def main():
             (output_dir / "run_report.json").write_text(json.dumps(report, indent=2))
             print(json.dumps(report, indent=2))
         else:
-            print("[infer] rendering full-resolution mip0 from trained model")
-            pred_base = _render_mip0_from_model(model, h=h, w=w, out_channels=args.out_channels, device=device, chunk=args.infer_chunk)
+            if args.use_export_latents:
+                print(
+                    "[infer] --use-export-latents: loading from exported PNGs + decoder "
+                    "(validates export fidelity)"
+                )
+                pred_base = _render_mip0_from_export(
+                    export_dir=export_dir,
+                    device=device,
+                    chunk=args.infer_chunk,
+                    infer_size=args.infer_size,
+                )
+            else:
+                print("[infer] rendering full-resolution mip0 from trained model")
+                pred_base = _render_mip0_from_model(
+                    model, h=h, w=w, out_channels=args.out_channels,
+                    device=device, chunk=args.infer_chunk,
+                )
             infer_out = output_dir / "inference"
             infer_paths = _save_inference_maps(pred_base, infer_out)
 
@@ -610,6 +642,7 @@ def main():
 
             report = {
                 "mode": "full",
+                "inference_source": "export_latents" if args.use_export_latents else "trained_model",
                 "reference_pt": str(args.reference_pt),
                 "export_dir": str(export_dir),
                 "device": device_str,
