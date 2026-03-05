@@ -57,7 +57,8 @@ python infrerenfe_nural_mateirals.py \
 Expected outputs:
 - `runs/train_long/export/metadata.json`
 - `runs/train_long/export/decoder_fp16.bin`
-- `runs/train_long/export/latents/latent_XX_mip_YY.pt`
+- `runs/train_long/export/latent_XX_mip_YY.pt`  ← flat (no latents/ subdir)
+- `runs/train_long/export/latent_XX_mip_YY.png`
 - `runs/train_long/training_history.json`
 - `runs/train_long/run_report.json`
 
@@ -81,10 +82,10 @@ python infrerenfe_nural_mateirals.py \
 ```
 
 Expected outputs:
-- `runs/full_demo/inference/pbr_preview.png`
-- `runs/full_demo/analysis/gt_vs_neural.png`
-- `runs/full_demo/analysis/gt_vs_neural_diff.png`
-- `runs/full_demo/analysis/training_loss.png`
+- `runs/full_demo/inference/pbr_preview.png` (albedo/normal/orm panel)
+- `runs/full_demo/analysis/all_analysis.png`  (GT|Neural|Diff + latent previews)
+- `runs/full_demo/analysis/training_loss.png` (loss curves + storage bar)
+- `runs/full_demo/analysis/latent_previews.png`
 - `runs/full_demo/analysis/quality_metrics.json`
 
 ## 4) Infer Only (from exported artifacts)

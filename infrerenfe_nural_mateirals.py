@@ -448,16 +448,13 @@ def _save_full_plots(
     return out
 
 
-def _run_true_bc6_export(export_dir: Path, bc6_cli: str | None, bc6_format: str | None):
+def _run_true_bc6_export(export_dir: Path, bc6_format: str | None):
     cmd = [
         sys.executable,
         str((Path(__file__).parent / "export_true_bc6_dds.py").resolve()),
         "--export-dir",
         str(export_dir),
-        "--decode-smoke",
     ]
-    if bc6_cli:
-        cmd.extend(["--bc6-cli", bc6_cli])
     if bc6_format:
         cmd.extend(["--bc6-format", bc6_format])
     subprocess.run(cmd, check=True)
@@ -489,7 +486,6 @@ def main():
     ap.add_argument("--analysis-batch-size", type=int, default=131072, help="Extra random UV/LOD batch size for analysis metrics in full mode.")
 
     ap.add_argument("--export-true-bc6", action="store_true")
-    ap.add_argument("--bc6-cli", type=str, default=None)
     ap.add_argument("--bc6-format", type=str, default=None)
     args = ap.parse_args()
 
@@ -657,7 +653,7 @@ def main():
     if args.export_true_bc6:
         print("[export] true BC6 DDS")
         target_export_dir = args.export_dir if mode == "infer" else (args.export_dir or (args.output_dir / "export"))
-        _run_true_bc6_export(target_export_dir, bc6_cli=args.bc6_cli, bc6_format=args.bc6_format)
+        _run_true_bc6_export(target_export_dir, bc6_format=args.bc6_format)
 
 if __name__ == "__main__":
     main()

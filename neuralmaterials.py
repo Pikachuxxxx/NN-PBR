@@ -8,9 +8,9 @@ Pipeline:
 3) Quantized finetune phase (freeze BC features, tune decoder on quantized path)
 
 Notes:
-- Training and export are BC6-inspired surrogates, not a bit-exact BC6H codec.
-- Exported `*.blocks128.bin` are compact custom records from learned BC-style params.
-- True BC6 DDS output requires a real external BC6 encoder stage (see README).
+- Training uses a BC6-inspired surrogate; it is not a bit-exact BC6H codec.
+- Exported latent tensors (.pt) and previews (.png) land flat in the export dir.
+- True BC6 DDS output: run export_true_bc6_dds.py (pure Python, no external tools).
 """
 
 from __future__ import annotations
