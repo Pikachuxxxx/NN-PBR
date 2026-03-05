@@ -816,8 +816,6 @@ def decode_quantized_params_to_mip(qp: dict, partition_bank: torch.Tensor) -> to
 @torch.no_grad()
 def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Path):
     out_dir.mkdir(parents=True, exist_ok=True)
-    lat_dir = out_dir / "latents"
-    lat_dir.mkdir(parents=True, exist_ok=True)
 
     # Export decoder weights.
     state = model.decoder.state_dict()
@@ -828,22 +826,17 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
     fp16_blob = torch.cat(flat).cpu().numpy().tobytes()
     (out_dir / "decoder_fp16.bin").write_bytes(fp16_blob)
 
+    # Latent tensors and previews go flat into out_dir (no latents/ sub-folder).
     latent_files = []
     model.set_freeze_bc_features(True)
     for i, pyr in enumerate(model.bc_pyramids):
         mips = pyr.decode_mips(hard_partition=True)
-        qparams = pyr.export_quantized_params()
-        for m, (tex, qp) in enumerate(zip(mips, qparams)):
+        for m, tex in enumerate(mips):
             stem = f"latent_{i:02d}_mip_{m:02d}"
-            pt_path = lat_dir / f"{stem}.pt"
-            png_path = lat_dir / f"{stem}.png"
-            bcparam_path = lat_dir / f"{stem}.bc6params.pt"
-            packed_path = lat_dir / f"{stem}.blocks128.bin"
+            pt_path = out_dir / f"{stem}.pt"
+            png_path = out_dir / f"{stem}.png"
             torch.save(tex.detach().cpu(), pt_path)
             save_chw_png_ldr(tex, png_path)
-            torch.save(qp, bcparam_path)
-            packed = pack_quantized_blocks_to_128b(qp)
-            packed_path.write_bytes(packed)
             latent_files.append(
                 {
                     "latent_index": i,
@@ -851,13 +844,11 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
                     "shape_chw": list(tex.shape),
                     "pt": pt_path.name,
                     "png": png_path.name,
-                    "bc6_block_params": bcparam_path.name,
-                    "packed_blocks_128b": packed_path.name,
                 }
             )
 
     meta = {
-        "version": 1,
+        "version": 2,
         "latent_count": model.n_latent,
         "latent_resolutions": model.latent_resolutions,
         "lod_biases": model.lod_biases,
@@ -869,17 +860,6 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
             "weights_fp16_blob": "decoder_fp16.bin",
             "state_dict": "decoder_state.pt",
         },
-        "block_packing": {
-            "record_bits": 128,
-            "layout_bits": [
-                {"name": "partition_id", "bits": 5},
-                {"name": "endpoints_q", "bits_per_value": "endpoint_bits", "count": 12},
-                {"name": "indices_q", "bits_per_value": "index_bits", "count": 16},
-                {"name": "padding", "bits": "remaining_to_128"},
-            ],
-        },
-        "export_encoding": "bc6_like_block_params_packed_128b",
-        "notes": "Packed blobs are compact custom 128-bit records from learned BC6-style params; they are not guaranteed to be BC6 DDS bitstream compliant.",
         "latent_files": latent_files,
     }
     (out_dir / "metadata.json").write_text(json.dumps(meta, indent=2))

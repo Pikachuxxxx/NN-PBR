@@ -15,7 +15,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,13 +65,24 @@ def _bcn_bytes(w: int, h: int, block_bytes: int, include_mips: bool) -> int:
 
 
 def _collect_neural_storage_bytes(export_dir: Path) -> Dict[str, int]:
-    lat_dir = export_dir / "latents"
-    block_files = sorted(lat_dir.glob("*.blocks128.bin"))
-    block_bytes = sum(p.stat().st_size for p in block_files)
+    # Latent .pt files live flat in export_dir (v2) or in export_dir/latents/ (v1).
+    lat_dir = export_dir if (export_dir / "metadata.json").exists() else export_dir
+    try:
+        meta = json.loads((export_dir / "metadata.json").read_text())
+        lat_root = export_dir
+        if (export_dir / "latents").exists() and (export_dir / "latents" / "latent_00_mip_00.pt").exists():
+            lat_root = export_dir / "latents"
+        latent_bytes = sum(
+            (lat_root / e["pt"]).stat().st_size
+            for e in meta.get("latent_files", [])
+            if (lat_root / e["pt"]).exists()
+        )
+    except Exception:
+        latent_bytes = 0
     decoder_bytes = (export_dir / "decoder_fp16.bin").stat().st_size
-    total = block_bytes + decoder_bytes
+    total = latent_bytes + decoder_bytes
     return {
-        "blocks128_bytes": int(block_bytes),
+        "latent_pt_bytes": int(latent_bytes),
         "decoder_fp16_bytes": int(decoder_bytes),
         "runtime_total_bytes": int(total),
     }
@@ -216,12 +227,15 @@ def _render_mip0_from_export(
     infer_size: str = "auto",
 ) -> torch.Tensor:
     meta = json.loads((export_dir / "metadata.json").read_text())
-    lat_dir = export_dir / "latents"
+    # Support flat layout (v2) and latents/ sub-dir layout (v1).
+    lat_root = export_dir
+    if (export_dir / "latents" / "latent_00_mip_00.pt").exists():
+        lat_root = export_dir / "latents"
 
     latent_count = int(meta["latent_count"])
     latents = []
     for i in range(latent_count):
-        p = lat_dir / f"latent_{i:02d}_mip_00.pt"
+        p = lat_root / f"latent_{i:02d}_mip_00.pt"
         if not p.exists():
             raise RuntimeError(f"Missing mip0 latent tensor: {p}")
         latents.append(torch.load(p, map_location="cpu").float())
@@ -261,19 +275,12 @@ def _save_inference_maps(pred: torch.Tensor, out_dir: Path) -> Dict[str, str]:
     _save_rgb01(normal, normal_p)
     _save_rgb01(orm, orm_p)
 
-    fig = plt.figure(figsize=(12, 4))
-    ax = fig.add_subplot(1, 3, 1)
-    ax.imshow(albedo)
-    ax.set_title("Albedo")
-    ax.axis("off")
-    ax = fig.add_subplot(1, 3, 2)
-    ax.imshow(normal)
-    ax.set_title("Normal")
-    ax.axis("off")
-    ax = fig.add_subplot(1, 3, 3)
-    ax.imshow(orm)
-    ax.set_title("ORM")
-    ax.axis("off")
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
+    fig.suptitle("Neural Material — Decoded PBR Maps", fontsize=12)
+    for ax, img, title in zip(axes, [albedo, normal, orm], ["Albedo", "Normal", "ORM"]):
+        ax.imshow(img)
+        ax.set_title(title)
+        ax.axis("off")
     fig.tight_layout()
     preview_p = out_dir / "pbr_preview.png"
     fig.savefig(preview_p, dpi=150)
@@ -287,6 +294,16 @@ def _save_inference_maps(pred: torch.Tensor, out_dir: Path) -> Dict[str, str]:
     }
 
 
+def _load_latent_png(export_dir: Path, latent_idx: int, mip_idx: int = 0) -> Optional[np.ndarray]:
+    """Load a latent preview PNG as an HWC float32 [0,1] array."""
+    for root in [export_dir, export_dir / "latents"]:
+        p = root / f"latent_{latent_idx:02d}_mip_{mip_idx:02d}.png"
+        if p.exists():
+            img = np.array(Image.open(p).convert("RGB")).astype(np.float32) / 255.0
+            return img
+    return None
+
+
 def _save_full_plots(
     ref_base: torch.Tensor,
     pred_base: torch.Tensor,
@@ -294,6 +311,7 @@ def _save_full_plots(
     compare_dir: Path,
     baseline_bytes: int,
     neural_bytes: int,
+    export_dir: Optional[Path] = None,
 ) -> Dict[str, str]:
     compare_dir.mkdir(parents=True, exist_ok=True)
 
@@ -310,58 +328,65 @@ def _save_full_plots(
         dim=0,
     ).permute(1, 2, 0).clamp(0.0, 1.0).cpu().numpy()
 
-    fig = plt.figure(figsize=(13, 7))
-    ax = fig.add_subplot(2, 3, 1)
-    ax.imshow(ref_albedo)
-    ax.set_title("GT Albedo")
-    ax.axis("off")
-    ax = fig.add_subplot(2, 3, 2)
-    ax.imshow(ref_normal)
-    ax.set_title("GT Normal")
-    ax.axis("off")
-    ax = fig.add_subplot(2, 3, 3)
-    ax.imshow(ref_orm)
-    ax.set_title("GT ORM")
-    ax.axis("off")
-    ax = fig.add_subplot(2, 3, 4)
-    ax.imshow(pred_albedo)
-    ax.set_title("Neural Albedo")
-    ax.axis("off")
-    ax = fig.add_subplot(2, 3, 5)
-    ax.imshow(pred_normal)
-    ax.set_title("Neural Normal")
-    ax.axis("off")
-    ax = fig.add_subplot(2, 3, 6)
-    ax.imshow(pred_orm)
-    ax.set_title("Neural ORM")
-    ax.axis("off")
-    fig.tight_layout()
-    gt_vs_neural = compare_dir / "gt_vs_neural.png"
-    fig.savefig(gt_vs_neural, dpi=150)
-    plt.close(fig)
-
     diff_albedo = np.abs(ref_albedo - pred_albedo).mean(axis=2)
     diff_normal = np.abs(ref_normal - pred_normal).mean(axis=2)
     diff_orm = np.abs(ref_orm - pred_orm).mean(axis=2)
 
-    fig = plt.figure(figsize=(12, 4))
-    ax = fig.add_subplot(1, 3, 1)
-    ax.imshow(diff_albedo, cmap="inferno")
-    ax.set_title("Abs Diff Albedo")
-    ax.axis("off")
-    ax = fig.add_subplot(1, 3, 2)
-    ax.imshow(diff_normal, cmap="inferno")
-    ax.set_title("Abs Diff Normal")
-    ax.axis("off")
-    ax = fig.add_subplot(1, 3, 3)
-    ax.imshow(diff_orm, cmap="inferno")
-    ax.set_title("Abs Diff ORM")
-    ax.axis("off")
+    # --- Master demo: GT | Neural | Diff (neural channels) ---
+    nrows, ncols = 3, 4  # rows: albedo / normal / orm; cols: GT / neural / diff / extras
+    fig, axes = plt.subplots(3, 4, figsize=(20, 12))
+    fig.suptitle("Neural Material — Full Analysis", fontsize=14, fontweight="bold")
+
+    def _show(ax, img, title, cmap=None, vmin=None, vmax=None):
+        ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
+        ax.set_title(title, fontsize=9)
+        ax.axis("off")
+
+    # Row 0: albedo
+    _show(axes[0, 0], ref_albedo, "GT Albedo")
+    _show(axes[0, 1], pred_albedo, "Neural Albedo")
+    im_a = axes[0, 2].imshow(diff_albedo, cmap="inferno")
+    axes[0, 2].set_title(f"Albedo Diff (mean={diff_albedo.mean():.4f})", fontsize=9)
+    axes[0, 2].axis("off")
+    plt.colorbar(im_a, ax=axes[0, 2], fraction=0.046)
+
+    # Row 1: normal
+    _show(axes[1, 0], ref_normal, "GT Normal")
+    _show(axes[1, 1], pred_normal, "Neural Normal")
+    im_n = axes[1, 2].imshow(diff_normal, cmap="inferno")
+    axes[1, 2].set_title(f"Normal Diff (mean={diff_normal.mean():.4f})", fontsize=9)
+    axes[1, 2].axis("off")
+    plt.colorbar(im_n, ax=axes[1, 2], fraction=0.046)
+
+    # Row 2: ORM
+    _show(axes[2, 0], ref_orm, "GT ORM")
+    _show(axes[2, 1], pred_orm, "Neural ORM")
+    im_o = axes[2, 2].imshow(diff_orm, cmap="inferno")
+    axes[2, 2].set_title(f"ORM Diff (mean={diff_orm.mean():.4f})", fontsize=9)
+    axes[2, 2].axis("off")
+    plt.colorbar(im_o, ax=axes[2, 2], fraction=0.046)
+
+    # Column 3: latent previews (mip0) from up to 4 latents
+    latent_imgs = []
+    if export_dir is not None:
+        for li in range(4):
+            img = _load_latent_png(export_dir, li, mip_idx=0)
+            if img is not None:
+                latent_imgs.append((li, img))
+
+    for row_i, ax in enumerate(axes[:, 3]):
+        if row_i < len(latent_imgs):
+            li, img = latent_imgs[row_i]
+            _show(ax, img, f"Latent {li} mip0")
+        else:
+            ax.axis("off")
+
     fig.tight_layout()
-    diff_maps = compare_dir / "gt_vs_neural_diff.png"
-    fig.savefig(diff_maps, dpi=150)
+    all_in_one = compare_dir / "all_analysis.png"
+    fig.savefig(all_in_one, dpi=120)
     plt.close(fig)
 
+    # --- Training loss curve ---
     p1_x = [h["iter"] for h in loss_history if h["phase"] == 1]
     p1_y = [h["mse"] for h in loss_history if h["phase"] == 1]
     p2_x = [h["iter"] for h in loss_history if h["phase"] == 2]
@@ -369,45 +394,58 @@ def _save_full_plots(
     p3_x = [h["iter"] for h in loss_history if h["phase"] == 3]
     p3_y = [h["mse"] for h in loss_history if h["phase"] == 3]
 
-    fig = plt.figure(figsize=(10, 4))
-    ax = fig.add_subplot(1, 1, 1)
+    fig, (ax_loss, ax_bar) = plt.subplots(1, 2, figsize=(14, 4))
     if p1_x:
-        ax.plot(p1_x, p1_y, label="phase1")
+        ax_loss.plot(p1_x, p1_y, label="phase1 (warmup)", color="#4e9af1")
     if p2_x:
-        ax.plot(p2_x, p2_y, label="phase2")
+        ax_loss.plot(p2_x, p2_y, label="phase2 (BC)", color="#f4a430")
     if p3_x:
-        ax.plot(p3_x, p3_y, label="phase3")
-    ax.set_xlabel("iteration")
-    ax.set_ylabel("MSE")
-    ax.set_yscale("log")
-    ax.grid(True, alpha=0.2)
-    ax.legend()
+        ax_loss.plot(p3_x, p3_y, label="phase3 (finetune)", color="#62c462")
+    ax_loss.set_xlabel("iteration")
+    ax_loss.set_ylabel("MSE")
+    ax_loss.set_yscale("log")
+    ax_loss.set_title("Training Loss")
+    ax_loss.grid(True, alpha=0.2)
+    ax_loss.legend()
+
+    names = ["PBR BCn\n(baseline)", "Neural\nruntime"]
+    vals_mb = [baseline_bytes / (1024.0 * 1024.0), neural_bytes / (1024.0 * 1024.0)]
+    bars = ax_bar.bar(names, vals_mb, color=["#c96b2c", "#3c77a8"], width=0.5)
+    ax_bar.set_ylabel("MB")
+    ax_bar.set_title("Runtime Storage Comparison")
+    ax_bar.grid(True, axis="y", alpha=0.2)
+    for b, v in zip(bars, vals_mb):
+        ax_bar.text(b.get_x() + b.get_width() * 0.5, b.get_height() + max(vals_mb) * 0.01,
+                    f"{v:.2f} MB", ha="center", va="bottom", fontsize=10)
     fig.tight_layout()
     training_loss = compare_dir / "training_loss.png"
     fig.savefig(training_loss, dpi=150)
     plt.close(fig)
 
-    fig = plt.figure(figsize=(6, 4))
-    ax = fig.add_subplot(1, 1, 1)
-    names = ["PBR BCn", "Neural"]
-    vals_mb = [baseline_bytes / (1024.0 * 1024.0), neural_bytes / (1024.0 * 1024.0)]
-    bars = ax.bar(names, vals_mb, color=["#c96b2c", "#3c77a8"])
-    ax.set_ylabel("MB")
-    ax.set_title("Runtime Storage")
-    ax.grid(True, axis="y", alpha=0.2)
-    for b, v in zip(bars, vals_mb):
-        ax.text(b.get_x() + b.get_width() * 0.5, b.get_height(), f"{v:.2f}", ha="center", va="bottom")
-    fig.tight_layout()
-    cost_savings = compare_dir / "cost_savings.png"
-    fig.savefig(cost_savings, dpi=150)
-    plt.close(fig)
+    # --- Latent diff dashboard: show mip0 for each latent in a grid ---
+    latent_diff_path = None
+    if export_dir is not None and latent_imgs:
+        n_lat = len(latent_imgs)
+        fig, axes = plt.subplots(1, n_lat, figsize=(5 * n_lat, 5))
+        if n_lat == 1:
+            axes = [axes]
+        fig.suptitle("Latent Pyramids — mip0 preview", fontsize=12, fontweight="bold")
+        for ax, (li, img) in zip(axes, latent_imgs):
+            ax.imshow(img)
+            ax.set_title(f"Latent {li}")
+            ax.axis("off")
+        fig.tight_layout()
+        latent_diff_path = compare_dir / "latent_previews.png"
+        fig.savefig(latent_diff_path, dpi=120)
+        plt.close(fig)
 
-    return {
-        "gt_vs_neural": str(gt_vs_neural),
-        "gt_vs_neural_diff": str(diff_maps),
+    out = {
+        "all_analysis": str(all_in_one),
         "training_loss": str(training_loss),
-        "cost_savings": str(cost_savings),
     }
+    if latent_diff_path:
+        out["latent_previews"] = str(latent_diff_path)
+    return out
 
 
 def _run_true_bc6_export(export_dir: Path, bc6_cli: str | None, bc6_format: str | None):
@@ -544,6 +582,7 @@ def main():
                 compare_dir=output_dir / "analysis",
                 baseline_bytes=baseline_bytes,
                 neural_bytes=neural_bytes,
+                export_dir=export_dir,
             )
             quality_metrics = _quality_metrics(ref_base=ref_base, pred_base=pred_base)
             batch_metrics = _eval_random_batch_metrics(
