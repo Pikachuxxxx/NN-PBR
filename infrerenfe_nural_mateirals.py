@@ -422,30 +422,10 @@ def _save_full_plots(
     fig.savefig(training_loss, dpi=150)
     plt.close(fig)
 
-    # --- Latent diff dashboard: show mip0 for each latent in a grid ---
-    latent_diff_path = None
-    if export_dir is not None and latent_imgs:
-        n_lat = len(latent_imgs)
-        fig, axes = plt.subplots(1, n_lat, figsize=(5 * n_lat, 5))
-        if n_lat == 1:
-            axes = [axes]
-        fig.suptitle("Latent Pyramids — mip0 preview", fontsize=12, fontweight="bold")
-        for ax, (li, img) in zip(axes, latent_imgs):
-            ax.imshow(img)
-            ax.set_title(f"Latent {li}")
-            ax.axis("off")
-        fig.tight_layout()
-        latent_diff_path = compare_dir / "latent_previews.png"
-        fig.savefig(latent_diff_path, dpi=120)
-        plt.close(fig)
-
-    out = {
+    return {
         "all_analysis": str(all_in_one),
         "training_loss": str(training_loss),
     }
-    if latent_diff_path:
-        out["latent_previews"] = str(latent_diff_path)
-    return out
 
 
 def _run_true_bc6_export(export_dir: Path, bc6_format: str | None):

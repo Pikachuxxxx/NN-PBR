@@ -3,71 +3,64 @@
 This project implements the paper: Real-Time Neural Materials using Block-Compressed Features
 https://arxiv.org/pdf/2311.16121
 
-This is a WIP project.
+> WIP implementation.
 
-This repo trains a neural material decoder that reconstructs:
-- albedo RGB
-- normal XY
-- AO roughness metallic
+It "bakes" a single material into:
+- a few latent texture pyramids (BC6-filterable at runtime), and
+- a tiny MLP decoder (`decoder_fp16.bin`) evaluated in a shader to reconstruct 8 PBR channels.
 
-Target output channels are 8 total:
-- `[albedo_r, albedo_g, albedo_b, normal_x, normal_y, ao, roughness, metallic]`
+Output channels: `[albedo_r, albedo_g, albedo_b, normal_x, normal_y, ao, roughness, metallic]`
 
-The main orchestrator is:
-- `infrerenfe_nural_mateirals.py`
+---
 
-Core building blocks:
-- `neuralmaterials.py`
-- `prepare_freepbr_material.py`
-- `export_true_bc6_dds.py`
-- `shaders/neural_material_decode.hlsl`
+## Demo
 
-## Demo (Results from `iter60_demo`)
+Full analysis dashboard (GT | Neural | Diff | Latent preview):
 
-### Ground Truth vs. Neural Reconstruction
-![GT vs Neural](runs/iter60_demo/analysis/gt_vs_neural.png)
+![Full Analysis](demo/iter60_demo/analysis/gt_vs_neural.png)
 
-### Error Heatmap (Difference)
-![GT vs Neural Diff](runs/iter60_demo/analysis/gt_vs_neural_diff.png)
+Error heatmaps (albedo / normal / ORM):
 
-### Training Loss
-![Training Loss](runs/iter60_demo/analysis/training_loss.png)
+![Diff](demo/iter60_demo/analysis/gt_vs_neural_diff.png)
 
-### Cost Savings
-![Cost Savings](runs/iter60_demo/analysis/cost_savings.png)
+Training loss + storage comparison:
 
-## TODO
-- [ ] Export surrogates into direct BC6 format instead of intermediate bc6params.pt and blocks12.bin, these are just for debugging
-- [ ] use latent.pt decoded float vectors only for png debugging generation
-- [ ] modify the dds exporter to use the params to directly write to BC6dds block
-- [ ] Finish the vulkan application to show how to infer using HLSL shaders
- 
+![Training Loss](demo/iter60_demo/analysis/training_loss.png)
+
+> Note: demo outputs above are from an early 60-iter smoke run (pre-refactor).
+> Current code produces `all_analysis.png` and `training_loss.png` with an updated layout.
+
+---
+
 ## Pipeline Summary
 
-1. Prepare a material dataset from FreePBR into `reference_8ch.pt`.
-2. Train neural latents + decoder (`warmup -> BC constrained`).
-3. Export artifacts:
-   - decoder weights (`decoder_fp16.bin`)
-   - latent mip tensors (`latent_XX_mip_YY.pt`)
-   - debug previews (`latent_XX_mip_YY.png`)
-   - custom packed records (`*.blocks128.bin`)
-4. Optionally export true GPU BC6 DDS textures (`export_true_bc6_dds.py`):
-   - now uses latent `.pt` mips directly
-   - builds one mip-chained DDS per latent
-   - BC6-encodes that DDS via external CLI
-5. Runtime shader samples BC6 latent textures + runs MLP decode.
+1. Prepare a material dataset from FreePBR → `reference_8ch.pt`
+2. Train neural latents + decoder (warmup → BC-constrained phases)
+3. Export artifacts (flat in `<run>/export/`):
+   - `decoder_fp16.bin` — quantized MLP weights (FP16)
+   - `decoder_state.pt` — full-precision decoder state
+   - `latent_XX_mip_YY.pt` — float latent mip tensors
+   - `latent_XX_mip_YY.png` — LDR debug previews (mapped from `[-1,1]` to `[0,255]`)
+   - `metadata.json` — model dims, latent inventory, lod biases
+4. Optionally export true BC6 DDS textures (`export_true_bc6_dds.py`) — pure Python, no external tools:
+   - builds one mip-chained DDS per latent (`latent_XX.bc6.dds`)
+   - pure Python BC6H Mode 11 encoder with PSNR verification
+5. Runtime shader samples BC6 latent textures + runs FP16 MLP decode
+
+---
 
 ## Setup
 
 ```bash
-cd /Users/phanisrikar/Desktop/Projects/NN-PBR
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install torch numpy pillow matplotlib
 ```
 
-## Recommended Usage
+---
+
+## Usage
 
 ### 1) Prepare Dataset
 
@@ -80,12 +73,52 @@ python prepare_freepbr_material.py \
   --out-root data/freepbr/materials
 ```
 
-Output folder:
-- `data/freepbr/materials/<material-name>/reference_8ch.pt`
-- `data/freepbr/materials/<material-name>/dataset_report.json`
-- `data/freepbr/materials/<material-name>/maps/*`
+Outputs:
+- `data/freepbr/materials/<material>/reference_8ch.pt`
+- `data/freepbr/materials/<material>/dataset_report.json`
+- `data/freepbr/materials/<material>/maps/`
 
-### 2) Train Only
+### 2) Full Run (train + plots + inference)
+
+Quick smoke check (120 iters):
+```bash
+source .venv/bin/activate
+python infrerenfe_nural_mateirals.py \
+  --mode full \
+  --reference-pt data/freepbr/materials/scratched-up-steel-bl/reference_8ch.pt \
+  --output-dir runs/full_demo \
+  --device auto \
+  --phase1-iters 20 \
+  --phase2-iters 100 \
+  --phase3-iters 0 \
+  --batch-size 2048 \
+  --log-every 10 \
+  --interactive-progress \
+  --analysis-batch-size 65536
+```
+
+Full training run:
+```bash
+source .venv/bin/activate
+python infrerenfe_nural_mateirals.py \
+  --mode train \
+  --reference-pt data/freepbr/materials/scratched-up-steel-bl/reference_8ch.pt \
+  --output-dir runs/train_long \
+  --device auto \
+  --phase1-iters 5000 \
+  --phase2-iters 200000 \
+  --batch-size 4096 \
+  --log-every 200
+```
+
+Full-mode outputs (in `runs/<name>/`):
+- `inference/pbr_preview.png` — albedo / normal / ORM panel
+- `analysis/all_analysis.png` — GT | Neural | Diff | Latent preview (3×4 grid)
+- `analysis/training_loss.png` — loss curves + storage bar
+- `analysis/quality_metrics.json`
+- `export/` — flat latent `.pt`, `.png`, `decoder_fp16.bin`, `metadata.json`
+
+### 3) Train Only
 
 ```bash
 source .venv/bin/activate
@@ -96,35 +129,11 @@ python infrerenfe_nural_mateirals.py \
   --device auto \
   --phase1-iters 5000 \
   --phase2-iters 200000 \
-  --phase3-iters 0 \
   --batch-size 4096 \
   --log-every 200
 ```
 
-### 3) Full Run (train + plots + inference maps)
-
-```bash
-source .venv/bin/activate
-python infrerenfe_nural_mateirals.py \
-  --mode full \
-  --reference-pt data/freepbr/materials/scratched-up-steel-bl/reference_8ch.pt \
-  --output-dir runs/full_demo \
-  --device auto \
-  --phase1-iters 30 \
-  --phase2-iters 60 \
-  --phase3-iters 0 \
-  --batch-size 1024 \
-  --log-every 10 \
-  --interactive-progress \
-  --analysis-batch-size 131072
-```
-
-Full mode analysis now includes:
-- `analysis/gt_vs_neural.png` (GT vs inferred outputs)
-- `analysis/gt_vs_neural_diff.png` (absolute error heatmaps)
-- `analysis/quality_metrics.json` (full-image and random-batch metrics)
-
-### 4) Infer Only from Exported Artifacts
+### 4) Infer from Exported Artifacts
 
 ```bash
 source .venv/bin/activate
@@ -135,110 +144,126 @@ python infrerenfe_nural_mateirals.py \
   --device auto
 ```
 
-### 5) Export True BC6 DDS (GPU-ready)
-
-Requires external BC encoder CLI (for example Compressonator CLI in `PATH`).
+### 5) Export True BC6 DDS (pure Python, no external tools)
 
 ```bash
 source .venv/bin/activate
 python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export \
-  --decode-smoke
+  --export-dir runs/train_long/export
 ```
 
-## Artifact Formats and Why They Exist
+With explicit output dir:
+```bash
+python export_true_bc6_dds.py \
+  --export-dir runs/train_long/export \
+  --out-dir runs/train_long/export/true_bc6_dds
+```
 
-- `*.blocks128.bin`
-  - Custom compact block records from training surrogate parameters.
-  - Not guaranteed to be BC6 DDS bitstream compliant.
-  - Used for surrogate payload accounting.
+Skip verification diffing (faster):
+```bash
+python export_true_bc6_dds.py \
+  --export-dir runs/train_long/export \
+  --no-verify
+```
 
-- `latent_XX_mip_YY.pt`
-  - Float latent mips decoded from learned surrogate block params.
-  - Canonical source for true BC6 export in this repo.
+Outputs (in `<export-dir>/true_bc6_dds/`):
+- `latent_XX.bc6.dds` — BC6H DDS with full mip chain (DXGI_FORMAT_BC6H_UF16)
+- `true_bc6_export_report.json` — per-mip PSNR metrics
+- `latent_XX_mip_YY.diff.png` — diff figures (unless `--no-verify`)
 
-- `latent_XX_mip_YY.png`
-  - LDR debug preview only.
-  - Generated from latent tensor values mapped from `[-1,1]` to `[0,255]`.
-  - Not used as BC6 source anymore.
+Typical quality: mip0 PSNR 39–45 dB on real latent textures; >60 dB on small mips.
 
-- `latent_XX.bc6.dds`
-  - True BC6 DDS output for runtime loading by GPU API.
-  - Produced via external encoder from mip-chained float DDS source.
+---
 
-## Runtime Inputs
+## Artifact Formats
 
-From export directory:
+| File | Description |
+|------|-------------|
+| `metadata.json` | Model dims, latent inventory, lod biases (version 2 = flat export layout) |
+| `decoder_fp16.bin` | FP16 decoder weights for shader use |
+| `decoder_state.pt` | Full-precision PyTorch decoder state dict |
+| `latent_XX_mip_YY.pt` | Float latent mip tensor — canonical source for BC6 export |
+| `latent_XX_mip_YY.png` | LDR debug preview (mapped from `[-1,1]` to `[0,255]`) |
+| `latent_XX.bc6.dds` | True BC6H DDS (mip chain) for runtime GPU loading |
+
+---
+
+## Runtime
+
+From `export/`:
+- `metadata.json`
 - `decoder_fp16.bin`
-- `metadata.json` (contains `lod_biases`, model dims)
-- true BC6 DDS latent textures from `export_true_bc6_dds.py`
+- `latent_XX.bc6.dds` (true BC6 DDS per latent)
 
-Shader:
-- `shaders/neural_material_decode.hlsl`
+Shader: `shaders/neural_material_decode.hlsl`
 
-Runtime outputs:
-- `albedo`
-- `normalTS`
-- `ao`
-- `roughness`
-- `metallic`
+Runtime reconstructs: albedo · normalTS · ao · roughness · metallic
+
+---
 
 ## CLI Reference
 
 ### `prepare_freepbr_material.py`
 
-- `--product-url` (required, str): FreePBR product URL.
-- `--variant-keyword` (optional, str, default `-bl.zip`): preferred zip variant filter.
-- `--size` (optional, int, default `1024`): resize maps to square size, `<=0` keeps source size.
-- `--material-name` (optional, str, default `None`): output folder name override.
-- `--out-root` (optional, Path, default `data/freepbr/materials`): dataset root.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--product-url` | required | FreePBR product URL |
+| `--variant-keyword` | `-bl.zip` | preferred zip variant filter |
+| `--size` | `1024` | resize maps to square size (`<=0` = keep source) |
+| `--material-name` | auto | output folder name override |
+| `--out-root` | `data/freepbr/materials` | dataset root |
 
 ### `infrerenfe_nural_mateirals.py`
 
-- `--mode` (optional, enum, default `full`): `train|full|infer`.
-- `--reference-pt` (Path, required for `train` and `full`): reference tensor file.
-- `--output-dir` (Path, required for `train` and `full`; optional for `infer`): output root.
-- `--export-dir` (Path, required for `infer`; optional for `train` and `full`): existing export path.
-- `--device` (optional, str, default `auto`): compute device.
-- `--out-channels` (optional, int, default `8`): expected material output channels.
-- `--ref-mips` (optional, int, default `9`): reference mip levels.
-- `--latent-res` (optional, csv str, default `512,256,128,64`): latent base resolutions.
-- `--latent-mips` (optional, csv str, default `8,7,6,5`): mip count per latent.
-- `--hidden-dim` (optional, int, default `16`): MLP hidden width.
-- `--endpoint-bits` (optional, int, default `6`): surrogate endpoint quant bits.
-- `--index-bits` (optional, int, default `3`): surrogate index quant bits.
-- `--batch-size` (optional, int, default `4096`): train batch size.
-- `--phase1-iters` (optional, int, default `5000`): warmup phase iterations.
-- `--phase2-iters` (optional, int, default `200000`): BC-constrained phase iterations.
-- `--phase3-iters` (optional, int, default `0`): quantized finetune iterations.
-- `--log-every` (optional, int, default `200`): training log interval.
-- `--interactive-progress` (flag, default `False`): live phase progress bars with current loss.
-- `--infer-chunk` (optional, int, default `65536`): inference chunk size.
-- `--infer-size` (optional, str, default `auto`): `auto` or explicit size like `1024` or `1024x1024`.
-- `--analysis-batch-size` (optional, int, default `131072`): extra random UV/LOD evaluation batch in full mode.
-- `--export-true-bc6` (flag, default `False`): run true BC6 DDS export after main mode flow.
-- `--bc6-cli` (optional, str, default `None`): explicit BC encoder executable name/path.
-- `--bc6-format` (optional, str, default `None`): encoder format override.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--mode` | `full` | `train\|full\|infer` |
+| `--reference-pt` | required (train/full) | reference tensor |
+| `--output-dir` | required (train/full) | output root |
+| `--export-dir` | required (infer) | existing export path |
+| `--device` | `auto` | compute device |
+| `--out-channels` | `8` | material output channels |
+| `--ref-mips` | `9` | reference mip levels |
+| `--latent-res` | `512,256,128,64` | latent base resolutions |
+| `--latent-mips` | `8,7,6,5` | mip count per latent |
+| `--hidden-dim` | `16` | MLP hidden width |
+| `--endpoint-bits` | `6` | surrogate endpoint quant bits |
+| `--index-bits` | `3` | surrogate index quant bits |
+| `--batch-size` | `4096` | train batch size |
+| `--phase1-iters` | `5000` | warmup iterations |
+| `--phase2-iters` | `200000` | BC-constrained iterations |
+| `--phase3-iters` | `0` | quantized finetune iterations |
+| `--log-every` | `200` | training log interval |
+| `--interactive-progress` | off | live tqdm phase bars |
+| `--infer-chunk` | `65536` | inference chunk size |
+| `--infer-size` | `auto` | `auto`, `1024`, or `1024x1024` |
+| `--analysis-batch-size` | `131072` | extra random UV/LOD eval batch (full mode) |
+| `--export-true-bc6` | off | run BC6 DDS export after main flow |
+| `--bc6-format` | from metadata | `UF16` or `SF16` |
 
 ### `export_true_bc6_dds.py`
 
-- `--export-dir` (required, Path): export root containing `metadata.json` and latent `.pt` mips.
-- `--out-dir` (optional, Path, default `<export-dir>/true_bc6_dds`): BC6 DDS output folder.
-- `--bc6-cli` (optional, str, default `None`): explicit encoder executable.
-- `--bc6-format` (optional, str, default inferred from metadata): BC6 format override.
-- `--latent-index` (optional, int, default `None`): filter to one latent.
-- `--mip-index` (optional, int, default `None`): export subset mips only.
-- `--max-latents` (optional, int, default `0`): cap number of latent textures to export.
-- `--decode-smoke` (flag, default `False`): decode first BC6 DDS to PNG sanity output.
-- `--keep-source-dds` (flag, default `False`): keep intermediate `RGBA16F` source DDS files.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--export-dir` | required | dir with `metadata.json` and latent `.pt` files |
+| `--out-dir` | `<export-dir>/true_bc6_dds` | output directory |
+| `--bc6-format` | from metadata | `UF16` or `SF16` |
+| `--latent-index` | all | encode only this latent index |
+| `--max-latents` | `0` (all) | cap number of latents to encode |
+| `--no-verify` | off | skip BC6H decode + diff verification |
 
-## Storage/Savings Note
+---
 
-Savings comparisons in `infrerenfe_nural_mateirals.py` are based on:
-- analytical runtime BCn baseline (`BC1 albedo + BC5 normal + BC1 ORM`, mip chain included)
-- neural runtime payload (`*.blocks128.bin` + `decoder_fp16.bin`)
+## Storage Comparison Note
 
-They are not based on original PNG file sizes.
+`infrerenfe_nural_mateirals.py` compares:
+- **Baseline BCn**: analytical runtime memory (`BC1 albedo + BC5 normal + BC1 ORM`, full mip chain)
+- **Neural runtime**: `latent_XX_mip_YY.pt` tensors + `decoder_fp16.bin`
 
-## License 
+Comparisons reflect runtime memory, not source PNG file sizes.
+
+---
+
+## License
+
 MIT.
