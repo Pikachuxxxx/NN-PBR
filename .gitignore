@@ -19,7 +19,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-.claude
+.claude/
+runs/
 # C++ and Build Artifacts
 build/
 bin/
@@ -57,4 +58,6 @@ _deps/
 data/freepbr/materials/*/raw/
 # Ignore large float32 latent tensors but keep decoder, metadata, PNGs, DDS
 runs/*/export/metadata/*.pt
+# Claude Code local workspace (worktrees, conversation state) — not project files
 .claude/worktrees/
+.claude/settings.local.json

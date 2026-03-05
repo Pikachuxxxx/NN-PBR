@@ -9,7 +9,7 @@ Pipeline:
 
 Notes:
 - Training uses a BC6-inspired surrogate; it is not a bit-exact BC6H codec.
-- export_trained_artifacts() packs block params directly to BC6H Mode 11 DDS —
+- export_trained_artifacts() packs block params directly to BC6H Mode 12 DDS —
   no float32 decode/re-encode roundtrip.  PNG previews are kept for visual inspection.
 - Export layout v4: runtime files in root (latent_XX.bc6.dds, decoder_fp16.bin,
   metadata.json); debug files in metadata/ (decoder_state.pt, latent_XX_mip_YY.png).
@@ -372,8 +372,11 @@ class BC6SurrogateBlockLevel(nn.Module):
         y = mask * y1 + (1.0 - mask) * y2  # [NB,16,3]
 
         # Eq.9 nonlinear reinterpret surrogate.
-        h = torch.clamp(torch.floor((y - 1.0) / 1024.0) - 1.0, min=0.0)
-        w = torch.pow(torch.tensor(2.0, device=y.device, dtype=y.dtype), h - 14.0) * ((y / 1024.0) - h)
+        y = torch.clamp(y, 0.0, 65535.0)
+        h = torch.clamp(torch.floor((y - 1.0) / 1024.0) - 1.0, 0.0, 31.0)
+        pow2 = torch.pow(torch.tensor(2.0, device=y.device, dtype=y.dtype), h - 14.0)
+        pow2 = torch.clamp(pow2, 0.0, 1e4)
+        w = pow2 * ((y / 1024.0) - h)
 
         # Bound decoded values to latent range expected by decoder.
         return torch.tanh(w * 0.25)
@@ -639,7 +642,7 @@ class TrainConfig:
     lr_mlp_phase1: float = 1e-3
     gamma_phase1: float = 0.9995
 
-    lr_feat_phase2: float = 1e-2
+    lr_feat_phase2: float = 5e-5
     lr_mlp_phase2: float = 1e-3
     gamma_phase2: float = 0.9999
 
@@ -816,7 +819,8 @@ def decode_quantized_params_to_mip(qp: dict, partition_bank: torch.Tensor) -> to
 
 
 # ---------------------------------------------------------------------------
-# BC6H DDS helpers (Mode 11, single-subset, 11-bit endpoints, 3-bit indices)
+# BC6H DDS helpers (Mode 12, single-subset, 11-bit endpoints, 3-bit indices)
+# BC6H Mode 12: 5-bit mode header = 0b00111, one partition, absolute endpoints
 # ---------------------------------------------------------------------------
 
 import struct as _struct
@@ -837,13 +841,25 @@ _DXGI_BC6H_SF16 = 96
 _D3D10_TEXTURE2D = 3
 
 
-def _pack_bc6h_mode11_block(
+def _pack_bc6h_mode12_block(
     ep0: Tuple[int, int, int],
     ep1: Tuple[int, int, int],
     indices: List[int],
     signed_mode: bool,
 ) -> bytes:
-    """Pack one BC6H Mode 11 block into 16 bytes (LSB-first)."""
+    """Pack one BC6H Mode 12 block into 16 bytes (LSB-first).
+
+    Mode 12 layout (bits are LE, LSB first):
+      [4:0]   = 0b00111 (mode identifier)
+      [14:5]  = rw[9:0]   [24:15] = rx[9:0]
+      [34:25] = gw[9:0]   [44:35] = gx[9:0]
+      [54:45] = bw[9:0]   [64:55] = bx[9:0]
+      [65]    = rw[10]    [66]    = rx[10]
+      [67]    = gw[10]    [68]    = gx[10]
+      [69]    = bw[10]    [70]    = bx[10]
+      [72:71] = index[0] (anchor, 2 bits; MSB fixed 0)
+      [75:73] = index[1], ..., [117:115] = index[15]  (3 bits each)
+    """
     def _s11u(v: int) -> int:
         return v & 0x7FF  # two's-complement 11-bit → unsigned bits
 
@@ -921,14 +937,16 @@ def _write_bc6h_dds(
 
 def _pack_mip_blocks_to_bc6h_bytes(params: dict, signed_mode: bool) -> bytes:
     """
-    Directly pack quantized surrogate block params into BC6H Mode 11 bytes.
+    Directly pack quantized surrogate block params → BC6H Mode 12 bytes.
+    Lossless within the BC6H representation: no float texture decode/re-encode.
 
-    The surrogate uses 2-subset blocks (4 endpoints); Mode 11 is single-subset.
-    We use subset-0 endpoints (indices 0 and 1) for ep0/ep1.
+    Surrogate uses 2-subset blocks (4 endpoints); Mode 12 is single-subset.
+    We use subset-0 endpoints (ep_q[bi,0] and ep_q[bi,1]) as ep0/ep1.
 
-    Endpoint scaling:
-      UF16: 6-bit [0,63] -> 11-bit [0,2047]
-      SF16: 6-bit [0,63] (representing [-1,1]) -> 11-bit signed [-1023,1023]
+    Endpoint integer scaling (no float roundtrip):
+      UF16: 6-bit [0, ep_max] → 11-bit [0, 2047]  via  round(q * 2047 / ep_max)
+      SF16: 6-bit [0, ep_max] → SF16 [-1023, 1023] via  round((q/ep_max*2-1)*1023)
+    Both done with integer arithmetic to keep the packing exact.
     """
     if np is None:
         raise RuntimeError("numpy is required for BC6H block packing.")
@@ -937,16 +955,15 @@ def _pack_mip_blocks_to_bc6h_bytes(params: dict, signed_mode: bool) -> bytes:
     ep_bits = int(params["endpoint_bits"])
     ep_max = (1 << ep_bits) - 1  # 63 for 6-bit
 
+    ep_i = ep_q.astype(np.int32)
     if signed_mode:
-        # 6-bit [0,63] encodes [-1,1] mapped through sigmoid; back to SF16 [-1023,1023]
-        ep_11 = (
-            (ep_q.astype("float64") / ep_max * 2.0 - 1.0) * 1023.0
-        ).round().astype("int32").clip(-1023, 1023)
+        # round((ep_q/ep_max * 2 - 1) * 1023)  →  (ep_q*2046 + ep_max//2) // ep_max - 1023
+        ep_11 = (ep_i * 2046 + ep_max // 2) // ep_max - 1023
+        ep_11 = ep_11.clip(-1023, 1023)
     else:
-        # 6-bit [0,63] encodes [0,1]; scale to UF16 [0,2047]
-        ep_11 = (
-            ep_q.astype("float64") / ep_max * 2047.0
-        ).round().astype("int32").clip(0, 2047)
+        # round(ep_q / ep_max * 2047)  →  (ep_q*2047 + ep_max//2) // ep_max
+        ep_11 = (ep_i * 2047 + ep_max // 2) // ep_max
+        ep_11 = ep_11.clip(0, 2047)
 
     out = bytearray()
     for bi in range(ep_q.shape[0]):
@@ -959,13 +976,104 @@ def _pack_mip_blocks_to_bc6h_bytes(params: dict, signed_mode: bool) -> bytes:
             ep0, ep1 = ep1, ep0
             idxs = [7 - x for x in idxs]
 
-        out.extend(_pack_bc6h_mode11_block(
+        out.extend(_pack_bc6h_mode12_block(
             (int(ep0[0]), int(ep0[1]), int(ep0[2])),
             (int(ep1[0]), int(ep1[1]), int(ep1[2])),
             idxs,
             signed_mode=signed_mode,
         ))
     return bytes(out)
+
+
+def _decode_bc6h_mode12_block(block_bytes: bytes, signed_mode: bool) -> "np.ndarray":
+    """Decode one 16-byte BC6H Mode 12 block to 16 texels [4, 4, 3] float32.
+
+    UF16: output in [0, 1].  SF16: output in [-1, 1].
+    Mirrors _pack_bc6h_mode12_block exactly.
+    """
+    v = int.from_bytes(block_bytes, byteorder="little")
+
+    # Extract lower 10 bits of each endpoint channel
+    rw = (v >> 5)  & 0x3FF
+    rx = (v >> 15) & 0x3FF
+    gw = (v >> 25) & 0x3FF
+    gx = (v >> 35) & 0x3FF
+    bw = (v >> 45) & 0x3FF
+    bx = (v >> 55) & 0x3FF
+
+    # Reconstruct 11-bit endpoints (MSBs stored at bits 65-70)
+    rw |= ((v >> 65) & 1) << 10
+    rx |= ((v >> 66) & 1) << 10
+    gw |= ((v >> 67) & 1) << 10
+    gx |= ((v >> 68) & 1) << 10
+    bw |= ((v >> 69) & 1) << 10
+    bx |= ((v >> 70) & 1) << 10
+
+    # Extract indices: anchor[0] = 2 bits at 71, rest = 3 bits each
+    indices = [(v >> 71) & 0x3]
+    bp = 73
+    for _ in range(15):
+        indices.append((v >> bp) & 0x7)
+        bp += 3
+
+    # Convert 11-bit integer endpoints to float
+    if signed_mode:
+        def _s11f(x: int) -> float:
+            # 11-bit two's complement → float in [-1, 1]
+            return (x - 2048 if x > 1023 else x) / 1023.0
+        ep0 = np.array([_s11f(rw), _s11f(gw), _s11f(bw)], dtype=np.float32)
+        ep1 = np.array([_s11f(rx), _s11f(gx), _s11f(bx)], dtype=np.float32)
+    else:
+        ep0 = np.array([rw / 2047.0, gw / 2047.0, bw / 2047.0], dtype=np.float32)
+        ep1 = np.array([rx / 2047.0, gx / 2047.0, bx / 2047.0], dtype=np.float32)
+
+    # Interpolate 16 texels (3-bit indices: 8 levels, weight = idx/7)
+    out = np.empty((16, 3), dtype=np.float32)
+    for i, idx in enumerate(indices):
+        t = idx / 7.0
+        out[i] = ep0 + (ep1 - ep0) * t
+
+    return out.reshape(4, 4, 3)
+
+
+def decode_bc6h_dds_mip0(dds_path: Path, signed_mode: bool) -> "torch.Tensor":
+    """Decode mip0 of a BC6H Mode 12 DDS file → float tensor [3, H, W] in [-1, 1].
+
+    Reads the DDS header for W/H, skips to mip0 data (offset 148 bytes),
+    decodes each 4×4 block, and maps to the latent space:
+      UF16 [0, 1]  →  latent [-1, 1]  (same convention as save_chw_png_ldr)
+      SF16 [-1, 1] →  latent [-1, 1]  (pass-through)
+    """
+    if np is None:
+        raise RuntimeError("numpy is required for BC6H DDS decoding.")
+
+    raw = dds_path.read_bytes()
+    if raw[:4] != _DDS_MAGIC:
+        raise RuntimeError(f"Not a DDS file: {dds_path}")
+
+    # DDS layout: 4 (magic) + 124 (header) + 20 (DX10 ext) = 148 bytes before pixel data
+    h = _struct.unpack_from("<I", raw, 12)[0]
+    w = _struct.unpack_from("<I", raw, 16)[0]
+    bw = max(1, (w + 3) // 4)
+    bh = max(1, (h + 3) // 4)
+
+    offset = 148
+    mip0_end = offset + bw * bh * 16
+    mip0_data = raw[offset:mip0_end]
+
+    pixels = np.zeros((h, w, 3), dtype=np.float32)
+    for by in range(bh):
+        for bx_i in range(bw):
+            bi = by * bw + bx_i
+            texels = _decode_bc6h_mode12_block(mip0_data[bi * 16:(bi + 1) * 16], signed_mode)
+            y0, x0 = by * 4, bx_i * 4
+            rh, rw_px = min(4, h - y0), min(4, w - x0)
+            pixels[y0:y0 + rh, x0:x0 + rw_px] = texels[:rh, :rw_px]
+
+    t = torch.from_numpy(pixels).permute(2, 0, 1)  # [3, H, W]
+    if not signed_mode:
+        t = t * 2.0 - 1.0  # [0, 1] → [-1, 1]
+    return t
 
 
 @torch.no_grad()

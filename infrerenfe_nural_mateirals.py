@@ -26,6 +26,7 @@ from PIL import Image
 from neuralmaterials import (
     NeuralMaterialCompressionModel,
     TrainConfig,
+    decode_bc6h_dds_mip0,
     export_trained_artifacts,
     load_reference_mips,
     make_partition_bank,
@@ -235,42 +236,33 @@ def _render_mip0_from_export(
     chunk: int = 65536,
     infer_size: str = "auto",
 ) -> torch.Tensor:
-    meta = json.loads((export_dir / "metadata.json").read_text())
+    """Render mip0 from exported BC6H DDS latents + decoder weights.
 
-    # Load mip0 for each latent from PNG previews and reverse the LDR mapping
-    # (save_chw_png_ldr maps [-1,1] -> [0,255]; invert: [0,255] -> [0,1] -> [-1,1])
-    mip0_entries = sorted(
-        [e for e in meta.get("latent_files", []) if int(e["mip_index"]) == 0],
-        key=lambda e: int(e["latent_index"]),
-    )
+    Decodes latent_XX.bc6.dds files directly (no PNG roundtrip).
+    Output is in the same latent space [-1, 1] as training.
+    """
+    meta = json.loads((export_dir / "metadata.json").read_text())
+    signed_mode = bool(meta.get("bc6_signed_mode", False))
+    latent_count = int(meta["latent_count"])
+
+    # Decode mip0 from BC6H DDS — lossless within the BC6H representation
     latents = []
-    for e in mip0_entries:
-        png_rel = e.get("png")
-        if not png_rel:
+    for i in range(latent_count):
+        dds_path = export_dir / f"latent_{i:02d}.bc6.dds"
+        if not dds_path.exists():
             raise RuntimeError(
-                f"No PNG path in metadata for latent {e['latent_index']} mip 0. "
-                "Re-export with current code to regenerate metadata."
+                f"Missing latent DDS: {dds_path}\n"
+                "Re-export with current code to generate latent_XX.bc6.dds files."
             )
-        p = export_dir / png_rel
-        if not p.exists():
-            # Legacy fallback: same filename in flat export_dir or metadata/
-            fname = Path(png_rel).name
-            for candidate in [export_dir / fname, export_dir / "metadata" / fname]:
-                if candidate.exists():
-                    p = candidate
-                    break
-            else:
-                raise RuntimeError(f"Missing mip0 latent PNG: {png_rel}")
-        arr = np.array(Image.open(p).convert("RGB")).astype(np.float32) / 255.0
-        t = torch.from_numpy(arr).permute(2, 0, 1) * 2.0 - 1.0  # [3,H,W] in [-1,1]
+        t = decode_bc6h_dds_mip0(dds_path, signed_mode=signed_mode)  # [3, H, W] in [-1, 1]
         latents.append(t)
+
     out_h, out_w = _infer_output_resolution(meta, latents, infer_size=infer_size)
     upsampled = [
         F.interpolate(t.unsqueeze(0), size=(out_h, out_w), mode="bilinear", align_corners=False).squeeze(0)
         for t in latents
     ]
 
-    latent_count = int(meta["latent_count"])
     x = torch.cat(upsampled, dim=0).permute(1, 2, 0).contiguous().view(-1, latent_count * 3)
     decoder_state_rel = meta.get("decoder", {}).get("state_dict", "decoder_state.pt")
     state = torch.load(export_dir / decoder_state_rel, map_location="cpu")
@@ -587,7 +579,7 @@ def main():
         else:
             if args.use_export_latents:
                 print(
-                    "[infer] --use-export-latents: loading from exported PNGs + decoder "
+                    "[infer] --use-export-latents: decoding from BC6H DDS latents + decoder "
                     "(validates export fidelity)"
                 )
                 pred_base = _render_mip0_from_export(
