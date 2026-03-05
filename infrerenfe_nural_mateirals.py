@@ -65,24 +65,25 @@ def _bcn_bytes(w: int, h: int, block_bytes: int, include_mips: bool) -> int:
 
 
 def _collect_neural_storage_bytes(export_dir: Path) -> Dict[str, int]:
-    # Latent .pt files live flat in export_dir (v2) or in export_dir/latents/ (v1).
-    lat_dir = export_dir if (export_dir / "metadata.json").exists() else export_dir
+    """Compute runtime storage using theoretical BC6H block sizes.
+
+    At runtime the latents are loaded as BC6H DDS textures (16 bytes per 4×4 block),
+    NOT as raw float32 .pt tensors.  Using .pt file sizes inflates the neural size by
+    ~8× and makes savings look negative.
+    """
     try:
         meta = json.loads((export_dir / "metadata.json").read_text())
-        lat_root = export_dir
-        if (export_dir / "latents").exists() and (export_dir / "latents" / "latent_00_mip_00.pt").exists():
-            lat_root = export_dir / "latents"
-        latent_bytes = sum(
-            (lat_root / e["pt"]).stat().st_size
-            for e in meta.get("latent_files", [])
-            if (lat_root / e["pt"]).exists()
-        )
+        # BC6H = 128-bit (16 bytes) per 4×4 block, one block per mip entry.
+        latent_bc6h_bytes = 0
+        for e in meta.get("latent_files", []):
+            _, h, w = e["shape_chw"]
+            latent_bc6h_bytes += ((w + 3) // 4) * ((h + 3) // 4) * 16
     except Exception:
-        latent_bytes = 0
+        latent_bc6h_bytes = 0
     decoder_bytes = (export_dir / "decoder_fp16.bin").stat().st_size
-    total = latent_bytes + decoder_bytes
+    total = latent_bc6h_bytes + decoder_bytes
     return {
-        "latent_pt_bytes": int(latent_bytes),
+        "latent_bc6h_bytes": int(latent_bc6h_bytes),
         "decoder_fp16_bytes": int(decoder_bytes),
         "runtime_total_bytes": int(total),
     }
