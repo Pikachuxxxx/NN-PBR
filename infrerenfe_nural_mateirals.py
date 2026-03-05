@@ -65,26 +65,34 @@ def _bcn_bytes(w: int, h: int, block_bytes: int, include_mips: bool) -> int:
 
 
 def _collect_neural_storage_bytes(export_dir: Path) -> Dict[str, int]:
-    """Compute runtime storage using theoretical BC6H block sizes.
+    """Compute runtime storage.
 
-    At runtime the latents are loaded as BC6H DDS textures (16 bytes per 4×4 block),
-    NOT as raw float32 .pt tensors.  Using .pt file sizes inflates the neural size by
-    ~8× and makes savings look negative.
+    Preference order for latent size:
+    1. Actual DDS file sizes in export root (most accurate, post-DDS-export)
+    2. Theoretical BC6H block sizes from metadata (before DDS export)
+
+    Runtime files = BC6H DDS textures + decoder_fp16.bin + metadata.json
     """
     try:
         meta = json.loads((export_dir / "metadata.json").read_text())
-        # BC6H = 128-bit (16 bytes) per 4×4 block, one block per mip entry.
-        latent_bc6h_bytes = 0
-        for e in meta.get("latent_files", []):
-            _, h, w = e["shape_chw"]
-            latent_bc6h_bytes += ((w + 3) // 4) * ((h + 3) // 4) * 16
+        dds_files = sorted(export_dir.glob("latent_*.bc6.dds"))
+        if dds_files:
+            latent_bc6h_bytes = sum(f.stat().st_size for f in dds_files)
+        else:
+            # Theoretical: 16 bytes per 4×4 BC6H block per mip entry
+            latent_bc6h_bytes = sum(
+                ((e["shape_chw"][2] + 3) // 4) * ((e["shape_chw"][1] + 3) // 4) * 16
+                for e in meta.get("latent_files", [])
+            )
     except Exception:
         latent_bc6h_bytes = 0
     decoder_bytes = (export_dir / "decoder_fp16.bin").stat().st_size
-    total = latent_bc6h_bytes + decoder_bytes
+    meta_json_bytes = (export_dir / "metadata.json").stat().st_size if (export_dir / "metadata.json").exists() else 0
+    total = latent_bc6h_bytes + decoder_bytes + meta_json_bytes
     return {
         "latent_bc6h_bytes": int(latent_bc6h_bytes),
         "decoder_fp16_bytes": int(decoder_bytes),
+        "metadata_json_bytes": int(meta_json_bytes),
         "runtime_total_bytes": int(total),
     }
 
@@ -228,17 +236,24 @@ def _render_mip0_from_export(
     infer_size: str = "auto",
 ) -> torch.Tensor:
     meta = json.loads((export_dir / "metadata.json").read_text())
-    # Support flat layout (v2) and latents/ sub-dir layout (v1).
-    lat_root = export_dir
-    if (export_dir / "latents" / "latent_00_mip_00.pt").exists():
-        lat_root = export_dir / "latents"
 
-    latent_count = int(meta["latent_count"])
+    # Load mip0 for each latent using paths from metadata (relative to export_dir)
+    mip0_entries = sorted(
+        [e for e in meta.get("latent_files", []) if int(e["mip_index"]) == 0],
+        key=lambda e: int(e["latent_index"]),
+    )
     latents = []
-    for i in range(latent_count):
-        p = lat_root / f"latent_{i:02d}_mip_00.pt"
+    for e in mip0_entries:
+        p = export_dir / e["pt"]
         if not p.exists():
-            raise RuntimeError(f"Missing mip0 latent tensor: {p}")
+            # Legacy fallback: simple filename in export_dir or latents/
+            fname = Path(e["pt"]).name
+            for candidate in [export_dir / fname, export_dir / "latents" / fname]:
+                if candidate.exists():
+                    p = candidate
+                    break
+            else:
+                raise RuntimeError(f"Missing mip0 latent tensor: {e['pt']}")
         latents.append(torch.load(p, map_location="cpu").float())
     out_h, out_w = _infer_output_resolution(meta, latents, infer_size=infer_size)
     upsampled = [
@@ -246,8 +261,10 @@ def _render_mip0_from_export(
         for t in latents
     ]
 
+    latent_count = int(meta["latent_count"])
     x = torch.cat(upsampled, dim=0).permute(1, 2, 0).contiguous().view(-1, latent_count * 3)
-    state = torch.load(export_dir / "decoder_state.pt", map_location="cpu")
+    decoder_state_rel = meta.get("decoder", {}).get("state_dict", "decoder_state.pt")
+    state = torch.load(export_dir / decoder_state_rel, map_location="cpu")
 
     fc1_w = state["fc1.weight"].to(device)
     fc1_b = state["fc1.bias"].to(device)
@@ -297,11 +314,24 @@ def _save_inference_maps(pred: torch.Tensor, out_dir: Path) -> Dict[str, str]:
 
 def _load_latent_png(export_dir: Path, latent_idx: int, mip_idx: int = 0) -> Optional[np.ndarray]:
     """Load a latent preview PNG as an HWC float32 [0,1] array."""
-    for root in [export_dir, export_dir / "latents"]:
-        p = root / f"latent_{latent_idx:02d}_mip_{mip_idx:02d}.png"
+    # Use metadata.json paths when available (most accurate)
+    try:
+        meta = json.loads((export_dir / "metadata.json").read_text())
+        for e in meta.get("latent_files", []):
+            if int(e["latent_index"]) == latent_idx and int(e["mip_index"]) == mip_idx:
+                png_rel = e.get("png")
+                if png_rel:
+                    p = export_dir / png_rel
+                    if p.exists():
+                        return np.array(Image.open(p).convert("RGB")).astype(np.float32) / 255.0
+    except Exception:
+        pass
+    # Legacy fallback: check flat, latents/, and metadata/ subdirs
+    fname = f"latent_{latent_idx:02d}_mip_{mip_idx:02d}.png"
+    for root in [export_dir, export_dir / "latents", export_dir / "metadata"]:
+        p = root / fname
         if p.exists():
-            img = np.array(Image.open(p).convert("RGB")).astype(np.float32) / 255.0
-            return img
+            return np.array(Image.open(p).convert("RGB")).astype(np.float32) / 255.0
     return None
 
 

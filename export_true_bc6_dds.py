@@ -704,12 +704,13 @@ def _read_dds_metadata(path: Path) -> Dict[str, int]:
 
 def _find_latent_dir(export_dir: Path) -> Path:
     """
-    Find where .pt latent files live.  The layout may be flat (export_dir/)
-    or nested (export_dir/latents/).
+    Find where .pt latent files live.  The layout may be flat (export_dir/),
+    nested (export_dir/latents/), or in metadata/ (v3+).
     """
-    nested = export_dir / "latents"
-    if nested.is_dir():
-        return nested
+    for subdir in ["latents", "metadata"]:
+        d = export_dir / subdir
+        if d.is_dir():
+            return d
     return export_dir
 
 
@@ -731,10 +732,14 @@ def _group_mips_by_latent(
         pt_name = e.get("pt")
         if not pt_name:
             continue
-        # Try nested dir first, then flat
-        pt_path = lat_dir / pt_name
-        if not pt_path.exists():
+        # If pt_name contains a path separator, it's relative to export_dir (v3)
+        if "/" in pt_name or "\\" in pt_name:
             pt_path = export_dir / pt_name
+        else:
+            # Legacy: simple filename → search in lat_dir then export_dir
+            pt_path = lat_dir / pt_name
+            if not pt_path.exists():
+                pt_path = export_dir / pt_name
         if not pt_path.exists():
             raise RuntimeError(f"Missing latent tensor file: {pt_name} (searched {lat_dir} and {export_dir})")
         grouped[li].append({
@@ -950,7 +955,7 @@ def _encode_latent_to_bc6h_dds(
             vm = _verify_and_diff(
                 original_chw=orig_for_diff,
                 decoded_chw=dec_for_diff,
-                out_dir=out_dir,
+                out_dir=out_dir / "metadata",
                 stem=stem,
                 signed_mode=False,  # comparison always in [0,1] space
             )
@@ -985,7 +990,7 @@ def main():
     )
     ap.add_argument(
         "--out-dir", type=Path, default=None,
-        help="Output folder for BC6H DDS files (default: <export-dir>/true_bc6_dds).",
+        help="Output folder for BC6H DDS files (default: <export-dir>; DDS files written to root, diffs/report to <out-dir>/metadata/).",
     )
     ap.add_argument(
         "--bc6-format", type=str, default=None, choices=["UF16", "SF16"],
@@ -1015,8 +1020,9 @@ def main():
     if args.bc6_format is not None:
         bc6_signed = args.bc6_format == "SF16"
 
-    out_dir = (args.out_dir or (export_dir / "true_bc6_dds")).resolve()
+    out_dir = (args.out_dir or export_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "metadata").mkdir(parents=True, exist_ok=True)
 
     grouped = _group_mips_by_latent(
         meta=meta,
@@ -1068,9 +1074,9 @@ def main():
         ),
         "files": exported,
     }
-    rep_path = out_dir / "true_bc6_export_report.json"
+    rep_path = out_dir / "metadata" / "true_bc6_export_report.json"
     rep_path.write_text(json.dumps(report, indent=2))
-    print(f"[done] wrote {len(exported)} DDS file(s) and report -> {rep_path}")
+    print(f"[done] wrote {len(exported)} DDS file(s) to {out_dir} and report -> {rep_path}")
 
 
 if __name__ == "__main__":

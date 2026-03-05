@@ -1,0 +1,389 @@
+{
+  "version": 1,
+  "latent_count": 4,
+  "latent_resolutions": [
+    512,
+    256,
+    128,
+    64
+  ],
+  "lod_biases": [
+    -1.0,
+    -2.0,
+    -3.0,
+    -4.0
+  ],
+  "bc6_signed_mode": false,
+  "decoder": {
+    "in_dim": 12,
+    "hidden_dim": 16,
+    "out_dim": 8,
+    "weights_fp16_blob": "decoder_fp16.bin",
+    "state_dict": "decoder_state.pt"
+  },
+  "block_packing": {
+    "record_bits": 128,
+    "layout_bits": [
+      {
+        "name": "partition_id",
+        "bits": 5
+      },
+      {
+        "name": "endpoints_q",
+        "bits_per_value": "endpoint_bits",
+        "count": 12
+      },
+      {
+        "name": "indices_q",
+        "bits_per_value": "index_bits",
+        "count": 16
+      },
+      {
+        "name": "padding",
+        "bits": "remaining_to_128"
+      }
+    ]
+  },
+  "export_encoding": "bc6_like_block_params_packed_128b",
+  "notes": "Packed blobs are compact custom 128-bit records from learned BC6-style params; they are not guaranteed to be BC6 DDS bitstream compliant.",
+  "latent_files": [
+    {
+      "latent_index": 0,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        512,
+        512
+      ],
+      "pt": "latent_00_mip_00.pt",
+      "png": "latent_00_mip_00.png",
+      "bc6_block_params": "latent_00_mip_00.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_00.blocks128.bin"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        256,
+        256
+      ],
+      "pt": "latent_00_mip_01.pt",
+      "png": "latent_00_mip_01.png",
+      "bc6_block_params": "latent_00_mip_01.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_01.blocks128.bin"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        128,
+        128
+      ],
+      "pt": "latent_00_mip_02.pt",
+      "png": "latent_00_mip_02.png",
+      "bc6_block_params": "latent_00_mip_02.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_02.blocks128.bin"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        64,
+        64
+      ],
+      "pt": "latent_00_mip_03.pt",
+      "png": "latent_00_mip_03.png",
+      "bc6_block_params": "latent_00_mip_03.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_03.blocks128.bin"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 4,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "pt": "latent_00_mip_04.pt",
+      "png": "latent_00_mip_04.png",
+      "bc6_block_params": "latent_00_mip_04.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_04.blocks128.bin"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 5,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "pt": "latent_00_mip_05.pt",
+      "png": "latent_00_mip_05.png",
+      "bc6_block_params": "latent_00_mip_05.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_05.blocks128.bin"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 6,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "pt": "latent_00_mip_06.pt",
+      "png": "latent_00_mip_06.png",
+      "bc6_block_params": "latent_00_mip_06.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_06.blocks128.bin"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 7,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "pt": "latent_00_mip_07.pt",
+      "png": "latent_00_mip_07.png",
+      "bc6_block_params": "latent_00_mip_07.bc6params.pt",
+      "packed_blocks_128b": "latent_00_mip_07.blocks128.bin"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        256,
+        256
+      ],
+      "pt": "latent_01_mip_00.pt",
+      "png": "latent_01_mip_00.png",
+      "bc6_block_params": "latent_01_mip_00.bc6params.pt",
+      "packed_blocks_128b": "latent_01_mip_00.blocks128.bin"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        128,
+        128
+      ],
+      "pt": "latent_01_mip_01.pt",
+      "png": "latent_01_mip_01.png",
+      "bc6_block_params": "latent_01_mip_01.bc6params.pt",
+      "packed_blocks_128b": "latent_01_mip_01.blocks128.bin"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        64,
+        64
+      ],
+      "pt": "latent_01_mip_02.pt",
+      "png": "latent_01_mip_02.png",
+      "bc6_block_params": "latent_01_mip_02.bc6params.pt",
+      "packed_blocks_128b": "latent_01_mip_02.blocks128.bin"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "pt": "latent_01_mip_03.pt",
+      "png": "latent_01_mip_03.png",
+      "bc6_block_params": "latent_01_mip_03.bc6params.pt",
+      "packed_blocks_128b": "latent_01_mip_03.blocks128.bin"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 4,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "pt": "latent_01_mip_04.pt",
+      "png": "latent_01_mip_04.png",
+      "bc6_block_params": "latent_01_mip_04.bc6params.pt",
+      "packed_blocks_128b": "latent_01_mip_04.blocks128.bin"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 5,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "pt": "latent_01_mip_05.pt",
+      "png": "latent_01_mip_05.png",
+      "bc6_block_params": "latent_01_mip_05.bc6params.pt",
+      "packed_blocks_128b": "latent_01_mip_05.blocks128.bin"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 6,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "pt": "latent_01_mip_06.pt",
+      "png": "latent_01_mip_06.png",
+      "bc6_block_params": "latent_01_mip_06.bc6params.pt",
+      "packed_blocks_128b": "latent_01_mip_06.blocks128.bin"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        128,
+        128
+      ],
+      "pt": "latent_02_mip_00.pt",
+      "png": "latent_02_mip_00.png",
+      "bc6_block_params": "latent_02_mip_00.bc6params.pt",
+      "packed_blocks_128b": "latent_02_mip_00.blocks128.bin"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        64,
+        64
+      ],
+      "pt": "latent_02_mip_01.pt",
+      "png": "latent_02_mip_01.png",
+      "bc6_block_params": "latent_02_mip_01.bc6params.pt",
+      "packed_blocks_128b": "latent_02_mip_01.blocks128.bin"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "pt": "latent_02_mip_02.pt",
+      "png": "latent_02_mip_02.png",
+      "bc6_block_params": "latent_02_mip_02.bc6params.pt",
+      "packed_blocks_128b": "latent_02_mip_02.blocks128.bin"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "pt": "latent_02_mip_03.pt",
+      "png": "latent_02_mip_03.png",
+      "bc6_block_params": "latent_02_mip_03.bc6params.pt",
+      "packed_blocks_128b": "latent_02_mip_03.blocks128.bin"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 4,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "pt": "latent_02_mip_04.pt",
+      "png": "latent_02_mip_04.png",
+      "bc6_block_params": "latent_02_mip_04.bc6params.pt",
+      "packed_blocks_128b": "latent_02_mip_04.blocks128.bin"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 5,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "pt": "latent_02_mip_05.pt",
+      "png": "latent_02_mip_05.png",
+      "bc6_block_params": "latent_02_mip_05.bc6params.pt",
+      "packed_blocks_128b": "latent_02_mip_05.blocks128.bin"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        64,
+        64
+      ],
+      "pt": "latent_03_mip_00.pt",
+      "png": "latent_03_mip_00.png",
+      "bc6_block_params": "latent_03_mip_00.bc6params.pt",
+      "packed_blocks_128b": "latent_03_mip_00.blocks128.bin"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "pt": "latent_03_mip_01.pt",
+      "png": "latent_03_mip_01.png",
+      "bc6_block_params": "latent_03_mip_01.bc6params.pt",
+      "packed_blocks_128b": "latent_03_mip_01.blocks128.bin"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "pt": "latent_03_mip_02.pt",
+      "png": "latent_03_mip_02.png",
+      "bc6_block_params": "latent_03_mip_02.bc6params.pt",
+      "packed_blocks_128b": "latent_03_mip_02.blocks128.bin"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "pt": "latent_03_mip_03.pt",
+      "png": "latent_03_mip_03.png",
+      "bc6_block_params": "latent_03_mip_03.bc6params.pt",
+      "packed_blocks_128b": "latent_03_mip_03.blocks128.bin"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 4,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "pt": "latent_03_mip_04.pt",
+      "png": "latent_03_mip_04.png",
+      "bc6_block_params": "latent_03_mip_04.bc6params.pt",
+      "packed_blocks_128b": "latent_03_mip_04.blocks128.bin"
+    }
+  ]
+}

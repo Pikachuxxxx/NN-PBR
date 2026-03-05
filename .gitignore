@@ -56,5 +56,5 @@ _deps/
 # Project specific
 data/freepbr/materials/*/raw/
 # Ignore large float32 latent tensors but keep decoder, metadata, PNGs, DDS
-runs/*/export/*.pt
-runs/*/export/latents/*.pt
+runs/*/export/metadata/*.pt
+.claude/worktrees/

@@ -816,25 +816,27 @@ def decode_quantized_params_to_mip(qp: dict, partition_bank: torch.Tensor) -> to
 @torch.no_grad()
 def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Path):
     out_dir.mkdir(parents=True, exist_ok=True)
+    meta_dir = out_dir / "metadata"
+    meta_dir.mkdir(parents=True, exist_ok=True)
 
     # Export decoder weights.
     state = model.decoder.state_dict()
-    torch.save(state, out_dir / "decoder_state.pt")
+    torch.save(state, meta_dir / "decoder_state.pt")
     flat = []
     for k in ("fc1.weight", "fc1.bias", "fc2.weight", "fc2.bias"):
         flat.append(state[k].detach().to(torch.float16).contiguous().view(-1))
     fp16_blob = torch.cat(flat).cpu().numpy().tobytes()
     (out_dir / "decoder_fp16.bin").write_bytes(fp16_blob)
 
-    # Latent tensors and previews go flat into out_dir (no latents/ sub-folder).
+    # Latent tensors and previews go into metadata/ subdir.
     latent_files = []
     model.set_freeze_bc_features(True)
     for i, pyr in enumerate(model.bc_pyramids):
         mips = pyr.decode_mips(hard_partition=True)
         for m, tex in enumerate(mips):
             stem = f"latent_{i:02d}_mip_{m:02d}"
-            pt_path = out_dir / f"{stem}.pt"
-            png_path = out_dir / f"{stem}.png"
+            pt_path = meta_dir / f"{stem}.pt"
+            png_path = meta_dir / f"{stem}.png"
             torch.save(tex.detach().cpu(), pt_path)
             save_chw_png_ldr(tex, png_path)
             latent_files.append(
@@ -842,13 +844,13 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
                     "latent_index": i,
                     "mip_index": m,
                     "shape_chw": list(tex.shape),
-                    "pt": pt_path.name,
-                    "png": png_path.name,
+                    "pt": f"metadata/{stem}.pt",
+                    "png": f"metadata/{stem}.png",
                 }
             )
 
     meta = {
-        "version": 2,
+        "version": 3,
         "latent_count": model.n_latent,
         "latent_resolutions": model.latent_resolutions,
         "lod_biases": model.lod_biases,
@@ -858,7 +860,7 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
             "hidden_dim": int(model.decoder.fc1.out_features),
             "out_dim": int(model.decoder.fc2.out_features),
             "weights_fp16_blob": "decoder_fp16.bin",
-            "state_dict": "decoder_state.pt",
+            "state_dict": "metadata/decoder_state.pt",
         },
         "latent_files": latent_files,
     }
