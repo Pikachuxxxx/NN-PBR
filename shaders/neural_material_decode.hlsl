@@ -117,8 +117,9 @@ NeuralPBR DecodeNeuralMaterialWithGrad(float2 uv, float2 duvdx, float2 duvdy)
     }
 
     NeuralPBR o;
-    // Outputs are trained in [-1,1] range. Convert to standard PBR ranges.
-    o.albedo = saturate(float3(y[0], y[1], y[2]) * 0.5 + 0.5);
+    // Albedo is trained in [0,1] range (physical reflectance), just saturate.
+    // Other outputs (normal, ORM) are in [-1,1] and need the 0.5 + 0.5 conversion.
+    o.albedo = saturate(float3(y[0], y[1], y[2]));
 
     float nx = y[3];
     float ny = y[4];

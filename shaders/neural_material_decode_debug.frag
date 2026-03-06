@@ -87,7 +87,8 @@ NeuralPBR DecodeNeuralMaterial(vec2 uv)
     }
 
     NeuralPBR o;
-    o.albedo = clamp(vec3(y[0], y[1], y[2]) * 0.5 + 0.5, 0.0, 1.0);
+    // Albedo is trained in [0, 1] (physical reflectance), just clamp
+    o.albedo = clamp(vec3(y[0], y[1], y[2]), 0.0, 1.0);
 
     float nx = y[3];
     float ny = y[4];

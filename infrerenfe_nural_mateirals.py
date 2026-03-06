@@ -120,7 +120,8 @@ def _save_rgb01(rgb: np.ndarray, out_path: Path):
 
 
 def _to_rgb_chw(t: torch.Tensor) -> np.ndarray:
-    return ((t[:3].clamp(-1.0, 1.0) + 1.0) * 0.5).permute(1, 2, 0).cpu().numpy()
+    # Albedo is in [0, 1] (physical reflectance), no rescaling needed
+    return t[:3].clamp(0.0, 1.0).permute(1, 2, 0).cpu().numpy()
 
 
 def _normal_xy_to_rgb(t: torch.Tensor) -> np.ndarray:

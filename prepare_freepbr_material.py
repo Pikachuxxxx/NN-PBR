@@ -2,7 +2,9 @@
 """
 Download one FreePBR material, extract maps, and build an 8-channel reference tensor:
   [albedo_rgb, normal_x, normal_y, ao, roughness, metallic]
-All channels are normalized to [-1, 1] for training.
+- Albedo: stays in [0, 1] (physical reflectance)
+- Normal XY: normalized to [-1, 1] (signed)
+- AO/Roughness/Metallic: normalized to [-1, 1] for training
 """
 
 from __future__ import annotations
@@ -177,12 +179,12 @@ def _build_reference_tensor(
 
     base = torch.cat(
         [
-            albedo * 2.0 - 1.0,
+            albedo,  # Keep albedo in [0, 1] (physical reflectance)
             nx.unsqueeze(0),
             ny.unsqueeze(0),
-            ao * 2.0 - 1.0,
-            rough * 2.0 - 1.0,
-            metal * 2.0 - 1.0,
+            ao * 2.0 - 1.0,  # Normalize AO to [-1, 1]
+            rough * 2.0 - 1.0,  # Normalize roughness to [-1, 1]
+            metal * 2.0 - 1.0,  # Normalize metallic to [-1, 1]
         ],
         dim=0,
     )
