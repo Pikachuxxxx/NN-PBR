@@ -107,7 +107,8 @@ void main()
     // TOP ROW: Show 4 latent textures (mip0)
     if (inUV.y > 0.5) {
         float x = inUV.x * 4.0;
-        vec2 cell_uv = vec2(fract(x), inUV.y);  // 0..1 within cell
+        float y = (inUV.y - 0.5) * 2.0;  // remap [0.5,1.0] -> [0,1]
+        vec2 cell_uv = vec2(fract(x), y);  // 0..1 within cell
 
         vec3 color = vec3(0.0);
         if (x < 1.0) {
@@ -127,20 +128,30 @@ void main()
         return;
     }
 
-    // BOTTOM ROW: Show 3 predicted maps (albedo, normal, roughness+metallic+ao)
+    // BOTTOM ROW: Debug outputs in 4 regions
+    float x = inUV.x * 4.0;
+    int region = int(floor(x));
+
     NeuralPBR pbr = DecodeNeuralMaterial(uv);
 
-    float x = inUV.x * 3.0;
+    vec3 display = vec3(0.0);
 
-    if (x < 1.0) {
+    if (region == 0) {
         // Albedo
-        outColor = vec4(pbr.albedo, 1.0);
-    } else if (x < 2.0) {
-        // Normal (visualize as color: [0,1] range)
-        vec3 visualNormal = pbr.normalTS * 0.5 + 0.5;
-        outColor = vec4(visualNormal, 1.0);
+        display = pbr.albedo;
+
+    } else if (region == 1) {
+        // Normal (remap [-1,1] -> [0,1])
+        display = pbr.normalTS * 0.5 + 0.5;
+
+    } else if (region == 2) {
+        // ORM packed for visualization
+        display = vec3(pbr.ao, pbr.roughness, pbr.metallic);
+
     } else {
-        // Roughness (R), Metallic (G), AO (B)
-        outColor = vec4(pbr.roughness, pbr.metallic, pbr.ao, 1.0);
+        // Region 3: empty
+        display = vec3(0.0);
     }
+
+outColor = vec4(display, 1.0);
 }

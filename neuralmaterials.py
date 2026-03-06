@@ -1118,7 +1118,7 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
     fp16_blob = torch.cat(flat).cpu().numpy().tobytes()
     (out_dir / "decoder_fp16.bin").write_bytes(fp16_blob)
 
-    # --- Latent DDS (direct from block params) + PNG previews ---
+    # --- Latent DDS (BC6H from block params) + PNG previews ---
     latent_files = []
     model.set_freeze_bc_features(True)
     for i, pyr in enumerate(model.bc_pyramids):

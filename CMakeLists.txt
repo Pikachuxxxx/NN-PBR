@@ -81,17 +81,10 @@ add_custom_command(
 )
 
 add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/debug_latent0.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/debug_latent0.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/debug_latent0.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/debug_latent0.frag
-)
-
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/debug_uv.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/debug_uv.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/debug_uv.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/debug_uv.frag
+    OUTPUT ${CMAKE_BINARY_DIR}/shaders/test_grid.frag.spv
+    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/test_grid.frag
+            -o ${CMAKE_BINARY_DIR}/shaders/test_grid.frag.spv
+    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/test_grid.frag
 )
 
 add_custom_target(compile_shaders ALL
@@ -104,8 +97,7 @@ add_custom_target(compile_shaders ALL
         ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
         ${CMAKE_BINARY_DIR}/shaders/simple_quad_debug.frag.spv
         ${CMAKE_BINARY_DIR}/shaders/white_test.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/debug_latent0.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/debug_uv.frag.spv
+        ${CMAKE_BINARY_DIR}/shaders/test_grid.frag.spv
 )
 
 # Main executable

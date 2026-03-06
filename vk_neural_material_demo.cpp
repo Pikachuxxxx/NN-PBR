@@ -17,35 +17,55 @@
 #define CMAKE_BINARY_DIR "."
 #endif
 
+// FP16 to FP32 conversion
+inline float fp16_to_fp32(uint16_t h) {
+    uint32_t h32 = h;
+    uint32_t sign = (h32 >> 15) & 0x1;
+    uint32_t exponent = (h32 >> 10) & 0x1F;
+    uint32_t mantissa = h32 & 0x3FF;
+
+    if (exponent == 0) {
+        if (mantissa == 0) {
+            return sign ? -0.0f : 0.0f;
+        }
+        // Subnormal number
+        return (sign ? -1.0f : 1.0f) * (mantissa / 1024.0f) * (1.0f / 16384.0f);
+    }
+
+    if (exponent == 31) {
+        if (mantissa == 0) {
+            return sign ? -INFINITY : INFINITY;
+        }
+        return NAN;
+    }
+
+    // Normalized number
+    uint32_t f32_exp = exponent + 112; // 127 - 15 = 112
+    uint32_t f32_mantissa = mantissa << 13;
+    uint32_t f32 = (sign << 31) | (f32_exp << 23) | f32_mantissa;
+
+    float result;
+    std::memcpy(&result, &f32, sizeof(float));
+    return result;
+}
+
 // Simple math utilities
 struct Vertex {
     glm::vec3 position;
     glm::vec2 uv;
 };
 
-// DDS header parsing for BC6H textures
-struct DDSHeader {
-    uint32_t magic;
-    uint32_t size;
-    uint32_t flags;
-    uint32_t height;
-    uint32_t width;
-    uint32_t pitchOrLinearSize;
-    uint32_t depth;
-    uint32_t mipMapCount;
-    uint32_t reserved[11];
-};
-
-struct DDSPixelFormat {
-    uint32_t size;
-    uint32_t flags;
-    uint32_t fourCC;
-    uint32_t rgbBitCount;
-    uint32_t rBitMask;
-    uint32_t gBitMask;
-    uint32_t bBitMask;
-    uint32_t aBitMask;
-};
+// DDS file layout (all offsets from start of file):
+// 0x00: magic "DDS " (4 bytes)
+// 0x04: DDS_HEADER (124 bytes)
+//   0x04: size, 0x08: flags, 0x0C: height, 0x10: width
+//   0x14: pitchOrLinearSize, 0x18: depth, 0x1C: mipMapCount
+//   0x20: reserved[11] (44 bytes)
+//   0x4C: DDS_PIXELFORMAT (32 bytes)  <- fourCC at 0x54
+//   0x6C: caps, caps2, caps3, caps4, reserved2
+// 0x80: DDS_HEADER_DXT10 (if fourCC=="DX10", 20 bytes)
+//   0x80: dxgiFormat, 0x84: resourceDimension, ...
+// 0x94: pixel data (if DX10) OR 0x80 (if not DX10)
 
 struct DDSFile {
     std::vector<uint8_t> data;
@@ -54,48 +74,48 @@ struct DDSFile {
     bool isBc6h;
 };
 
-// Load DDS file (BC6H only)
+// Load DDS file, handles DX10 extended header (required for BC6H)
 DDSFile loadDDS(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Failed to open DDS: " + path);
     }
 
-    DDSHeader header;
-    DDSPixelFormat pixelFormat;
+    // Read entire file into memory
+    file.seekg(0, std::ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+    std::vector<uint8_t> raw(fileSize);
+    file.read(reinterpret_cast<char*>(raw.data()), fileSize);
+    file.close();
 
-    file.read(reinterpret_cast<char*>(&header.magic), 4);
-    if (header.magic != 0x20534444) { // "DDS "
-        throw std::runtime_error("Not a valid DDS file: " + path);
-    }
+    if (fileSize < 128) throw std::runtime_error("DDS file too small: " + path);
 
-    file.read(reinterpret_cast<char*>(&header.size), 120);
-    file.read(reinterpret_cast<char*>(&pixelFormat), 32);
+    auto read32 = [&](size_t off) -> uint32_t {
+        uint32_t v; std::memcpy(&v, raw.data() + off, 4); return v;
+    };
 
-    uint32_t caps, caps2, caps3, caps4, reserved;
-    file.read(reinterpret_cast<char*>(&caps), 4);
-    file.read(reinterpret_cast<char*>(&caps2), 4);
-    file.read(reinterpret_cast<char*>(&caps3), 4);
-    file.read(reinterpret_cast<char*>(&caps4), 4);
-    file.read(reinterpret_cast<char*>(&reserved), 4);
+    if (read32(0) != 0x20534444) throw std::runtime_error("Not a valid DDS file: " + path);
 
-    // DX10 header
-    uint32_t dxgiFormat;
-    file.read(reinterpret_cast<char*>(&dxgiFormat), 4);
+    uint32_t height    = read32(0x0C);
+    uint32_t width     = read32(0x10);
+    uint32_t mipCount  = read32(0x1C);
+    uint32_t fourCC    = read32(0x54); // DDS_PIXELFORMAT.fourCC at offset 0x54
 
-    // Read remaining pixel data
-    std::vector<uint8_t> pixelData;
-    char byte;
-    while (file.read(&byte, 1)) {
-        pixelData.push_back(byte);
+    bool isDX10 = (fourCC == 0x30315844); // "DX10"
+    size_t pixelDataOffset = isDX10 ? 148 : 128; // 128 + 20 bytes DX10 header
+
+    uint32_t dxgiFormat = 0;
+    if (isDX10 && fileSize >= 148) {
+        dxgiFormat = read32(0x80); // DX10 header starts at 0x80
     }
 
     DDSFile result;
-    result.width = header.width;
-    result.height = header.height;
-    result.mipCount = header.mipMapCount > 0 ? header.mipMapCount : 1;
-    result.isBc6h = (dxgiFormat == 95); // DXGI_FORMAT_BC6H_UF16
-    result.data = pixelData;
+    result.width = width;
+    result.height = height;
+    result.mipCount = mipCount > 0 ? mipCount : 1;
+    result.isBc6h = isDX10 && (dxgiFormat == 95); // DXGI_FORMAT_BC6H_UF16 = 95
+    result.data.assign(raw.begin() + pixelDataOffset, raw.end());
 
     return result;
 }
@@ -607,42 +627,79 @@ void VulkanApp::loadNeuralMaterialAssets() {
     // Load DDS latent textures
     for (int i = 0; i < 4; i++) {
         std::cout << "[Assets] Loading latent texture " << i << "..." << std::endl;
-        std::string ddsPath = exportDir + "/latent_" + (i < 10 ? "0" : "") + std::to_string(i) + ".bc6.dds";
+        // Try RGBA16F first (v5 export), fall back to BC6H (legacy)
+        std::string idx = (i < 10 ? "0" : "") + std::to_string(i);
+        std::string ddsPath = exportDir + "/latent_" + idx + ".f16.dds";
+        if (!std::ifstream(ddsPath).good()) {
+            ddsPath = exportDir + "/latent_" + idx + ".bc6.dds";
+        }
 
         std::cout << "  - Path: " << ddsPath << std::endl;
         DDSFile ddsFile = loadDDS(ddsPath);
 
+        VkFormat texFormat;
+        if (ddsFile.isRgba16f) {
+            texFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        } else if (ddsFile.isBc6h) {
+            texFormat = VK_FORMAT_BC6H_UFLOAT_BLOCK;
+        } else {
+            throw std::runtime_error("Unsupported DDS format in: " + ddsPath);
+        }
         std::cout << "  - Loaded: " << ddsFile.width << "x" << ddsFile.height
-                  << " mips=" << ddsFile.mipCount << " bc6h=" << ddsFile.isBc6h << std::endl;
+                  << " mips=" << ddsFile.mipCount
+                  << " format=" << (ddsFile.isRgba16f ? "RGBA16F" : "BC6H_UF16") << std::endl;
 
-        std::cout << "  - Creating image..." << std::endl;
-        createImage(ddsFile.width, ddsFile.height, VK_FORMAT_BC6H_UFLOAT_BLOCK,
+        createImage(ddsFile.width, ddsFile.height, texFormat,
                     VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     latentImages[i], latentMemory[i], ddsFile.mipCount);
 
-        std::cout << "  - Creating image view..." << std::endl;
-        createImageView(latentImages[i], VK_FORMAT_BC6H_UFLOAT_BLOCK, latentImageViews[i], ddsFile.mipCount);
+        createImageView(latentImages[i], texFormat, latentImageViews[i], ddsFile.mipCount);
 
-        std::cout << "  - Creating staging buffer for texture data (" << ddsFile.data.size() << " bytes)..." << std::endl;
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingMemory;
         createBuffer(ddsFile.data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      stagingBuffer, stagingMemory);
 
-        std::cout << "  - Copying texture data to staging buffer..." << std::endl;
         void* stagingData;
         vkMapMemory(device, stagingMemory, 0, ddsFile.data.size(), 0, &stagingData);
         std::memcpy(stagingData, ddsFile.data.data(), ddsFile.data.size());
         vkUnmapMemory(device, stagingMemory);
 
-        std::cout << "  - Transitioning image layout to TRANSFER_DST..." << std::endl;
-        transitionImageLayout(latentImages[i], VK_FORMAT_BC6H_UFLOAT_BLOCK,
+        transitionImageLayout(latentImages[i], texFormat,
                              VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                              ddsFile.mipCount);
 
-        std::cout << "  - Copying staging buffer to GPU image..." << std::endl;
+        // Build copy regions for all mip levels
+        std::vector<VkBufferImageCopy> copyRegions;
+        size_t bufOffset = 0;
+        for (uint32_t mip = 0; mip < ddsFile.mipCount; ++mip) {
+            uint32_t mipW = std::max(1u, ddsFile.width  >> mip);
+            uint32_t mipH = std::max(1u, ddsFile.height >> mip);
+            size_t   mipBytes;
+            if (ddsFile.isRgba16f) {
+                mipBytes = (size_t)mipW * mipH * 8; // 4 × float16
+            } else {
+                // BC6H: 16 bytes per 4×4 block
+                uint32_t bw = std::max(1u, (mipW + 3) / 4);
+                uint32_t bh = std::max(1u, (mipH + 3) / 4);
+                mipBytes = (size_t)bw * bh * 16;
+            }
+            VkBufferImageCopy region{};
+            region.bufferOffset      = bufOffset;
+            region.bufferRowLength   = 0;
+            region.bufferImageHeight = 0;
+            region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.mipLevel       = mip;
+            region.imageSubresource.baseArrayLayer = 0;
+            region.imageSubresource.layerCount     = 1;
+            region.imageOffset = {0, 0, 0};
+            region.imageExtent = {mipW, mipH, 1};
+            copyRegions.push_back(region);
+            bufOffset += mipBytes;
+        }
+
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -657,18 +714,9 @@ void VulkanApp::loadNeuralMaterialAssets() {
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         vkBeginCommandBuffer(cmdBuf, &beginInfo);
 
-        VkBufferImageCopy region{};
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
-        region.imageOffset = {0, 0, 0};
-        region.imageExtent = {ddsFile.width, ddsFile.height, 1};
-
-        vkCmdCopyBufferToImage(cmdBuf, stagingBuffer, latentImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(cmdBuf, stagingBuffer, latentImages[i],
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               static_cast<uint32_t>(copyRegions.size()), copyRegions.data());
 
         vkEndCommandBuffer(cmdBuf);
 
@@ -684,12 +732,11 @@ void VulkanApp::loadNeuralMaterialAssets() {
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingMemory, nullptr);
 
-        std::cout << "  - Transitioning image layout to SHADER_READ_ONLY..." << std::endl;
-        transitionImageLayout(latentImages[i], VK_FORMAT_BC6H_UFLOAT_BLOCK,
+        transitionImageLayout(latentImages[i], texFormat,
                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                              ddsFile.mipCount);
 
-        std::cout << "  ✓ Latent texture " << i << " loaded and uploaded to GPU" << std::endl;
+        std::cout << "  ✓ Latent texture " << i << " loaded (" << ddsFile.mipCount << " mips)" << std::endl;
     }
 
     // Load decoder weights
@@ -711,17 +758,33 @@ void VulkanApp::loadNeuralMaterialAssets() {
     decoderFile.read(decoderData.data(), decoderSize);
     decoderFile.close();
 
-    std::cout << "  - Creating buffer..." << std::endl;
-    createBuffer(decoderSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    // Convert FP16 to FP32
+    std::cout << "  - Converting FP16 to FP32..." << std::endl;
+    uint16_t* fp16Data = (uint16_t*)decoderData.data();
+    size_t numValues = decoderSize / 2;  // FP16 is 2 bytes per value
+    std::vector<float> fp32Data(numValues);
+    for (size_t i = 0; i < numValues; i++) {
+        fp32Data[i] = fp16_to_fp32(fp16Data[i]);
+    }
+
+    // Debug: print first few values
+    std::cout << "  - First 10 converted values:" << std::endl;
+    for (size_t i = 0; i < std::min(size_t(10), numValues); i++) {
+        std::cout << "    [" << i << "] FP16=0x" << std::hex << fp16Data[i] << std::dec << " -> FP32=" << fp32Data[i] << std::endl;
+    }
+
+    size_t fp32Size = fp32Data.size() * sizeof(float);
+    std::cout << "  - Creating buffer (" << fp32Size << " bytes for " << numValues << " values)..." << std::endl;
+    createBuffer(fp32Size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                  decoderBuffer, decoderMemory);
 
     std::cout << "  - Mapping memory..." << std::endl;
     void* data;
-    vkMapMemory(device, decoderMemory, 0, decoderSize, 0, &data);
-    std::memcpy(data, decoderData.data(), decoderSize);
+    vkMapMemory(device, decoderMemory, 0, fp32Size, 0, &data);
+    std::memcpy(data, fp32Data.data(), fp32Size);
     vkUnmapMemory(device, decoderMemory);
-    std::cout << "  ✓ Decoder loaded" << std::endl;
+    std::cout << "  ✓ Decoder loaded (converted " << numValues << " FP16 → FP32)" << std::endl;
 
     // Load LOD biases (from metadata)
     std::cout << "[Assets] Setting LOD biases..." << std::endl;
@@ -904,8 +967,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (DEBUG: latent_0 mip0 to verify DDS loading)
-    std::vector<char> fragShaderCode = loadShaderFile("debug_latent0.frag.spv");
+    // Load compiled shaders from SPIR-V (Debug: show latents top + decoded outputs bottom)
+    std::vector<char> fragShaderCode = loadShaderFile("neural_material_decode_debug.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
@@ -1109,10 +1172,11 @@ void VulkanApp::createBuffers() {
     std::cout << "[Buffers] Setting up full-screen quad vertices..." << std::endl;
     std::vector<Vertex> vertices = {
         // Full-screen quad (normalized device coordinates)
-        {{-1.0f,  1.0f, 0.0f}, {0.0f, 1.0f}},  // Top-left
-        {{ 1.0f,  1.0f, 0.0f}, {1.0f, 1.0f}},  // Top-right
-        {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},  // Bottom-left
-        {{ 1.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},  // Bottom-right
+        // Note: UV Y is flipped because Vulkan viewport Y increases downward
+        {{-1.0f,  1.0f, 0.0f}, {0.0f, 0.0f}},  // Top-left
+        {{ 1.0f,  1.0f, 0.0f}, {1.0f, 0.0f}},  // Top-right
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},  // Bottom-left
+        {{ 1.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},  // Bottom-right
     };
 
     std::cout << "[Buffers] Setting up quad indices..." << std::endl;

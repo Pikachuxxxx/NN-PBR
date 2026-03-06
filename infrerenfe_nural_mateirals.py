@@ -239,7 +239,7 @@ def _render_mip0_from_export(
     """Render mip0 from exported BC6H DDS latents + decoder weights.
 
     Decodes latent_XX.bc6.dds files directly (no PNG roundtrip).
-    Output is in the same latent space [-1, 1] as training.
+    Output is in the same latent space as training.
     """
     meta = json.loads((export_dir / "metadata.json").read_text())
     signed_mode = bool(meta.get("bc6_signed_mode", False))
@@ -254,7 +254,7 @@ def _render_mip0_from_export(
                 f"Missing latent DDS: {dds_path}\n"
                 "Re-export with current code to generate latent_XX.bc6.dds files."
             )
-        t = decode_bc6h_dds_mip0(dds_path, signed_mode=signed_mode)  # [3, H, W] in [-1, 1]
+        t = decode_bc6h_dds_mip0(dds_path, signed_mode=signed_mode)
         latents.append(t)
 
     out_h, out_w = _infer_output_resolution(meta, latents, infer_size=infer_size)
