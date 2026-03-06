@@ -302,6 +302,9 @@ void VulkanApp::initVulkan() {
             createImageViews();
         } else {
             std::cout << "[Init] Skipping swapchain and image views (headless mode)" << std::endl;
+            // Set a default format for headless mode (needed for render pass)
+            swapChainFormat = VK_FORMAT_B8G8R8A8_UNORM;
+            std::cout << "[Init] Using default format for headless: B8G8R8A8_UNORM" << std::endl;
         }
 
         std::cout << "[Init] Loading neural material assets..." << std::endl;
@@ -895,8 +898,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V
-    std::vector<char> fragShaderCode = loadShaderFile("neural_material_decode.frag.spv");
+    // Load compiled shaders from SPIR-V (DEBUG: simple latent 0 display)
+    std::vector<char> fragShaderCode = loadShaderFile("debug_latent0.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");

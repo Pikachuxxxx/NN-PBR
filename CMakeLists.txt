@@ -80,6 +80,13 @@ add_custom_command(
     DEPENDS ${CMAKE_SOURCE_DIR}/shaders/white_test.frag
 )
 
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/shaders/debug_latent0.frag.spv
+    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/debug_latent0.frag
+            -o ${CMAKE_BINARY_DIR}/shaders/debug_latent0.frag.spv
+    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/debug_latent0.frag
+)
+
 add_custom_target(compile_shaders ALL
     DEPENDS
         ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.vert.spv
@@ -90,6 +97,7 @@ add_custom_target(compile_shaders ALL
         ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
         ${CMAKE_BINARY_DIR}/shaders/simple_quad_debug.frag.spv
         ${CMAKE_BINARY_DIR}/shaders/white_test.frag.spv
+        ${CMAKE_BINARY_DIR}/shaders/debug_latent0.frag.spv
 )
 
 # Main executable
