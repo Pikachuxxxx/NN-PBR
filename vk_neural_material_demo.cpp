@@ -1003,17 +1003,36 @@ void VulkanApp::createPipeline() {
     }
     std::cout << "[Pipeline] Framebuffers created" << std::endl;
 
-    // Create graphics pipeline
+    // Create graphics pipeline with dynamic states
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = 2;
+    dynamicState.pDynamicStates = dynamicStates;
+
+    // Change viewport state to use NULL pointers since they're now dynamic
+    VkPipelineViewportStateCreateInfo dynamicViewportState{};
+    dynamicViewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    dynamicViewportState.viewportCount = 1;
+    dynamicViewportState.pViewports = nullptr;  // Dynamic
+    dynamicViewportState.scissorCount = 1;
+    dynamicViewportState.pScissors = nullptr;   // Dynamic
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
-    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pViewportState = &dynamicViewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pipelineLayout;
     pipelineInfo.renderPass = renderPass;
     pipelineInfo.subpass = 0;
@@ -1129,8 +1148,11 @@ void VulkanApp::createBuffers() {
 }
 
 void VulkanApp::createSyncObjects() {
-    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    // Create one semaphore pair per swapchain image to avoid reuse issues
+    uint32_t imageCount = swapchainImages.size();
+    imageAvailableSemaphores.resize(imageCount);
+    renderFinishedSemaphores.resize(imageCount);
+    // Create one fence per frame in flight for CPU synchronization
     inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -1140,11 +1162,18 @@ void VulkanApp::createSyncObjects() {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    // Create semaphores for each swapchain image
+    for (size_t i = 0; i < imageCount; i++) {
         if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create sync objects");
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create semaphores");
+        }
+    }
+
+    // Create fences for frames in flight
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create fence");
         }
     }
 }
@@ -1227,23 +1256,22 @@ void VulkanApp::draw() {
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
-    // Acquire next image
+    // Acquire next image - use a temporary semaphore, will get actual imageIndex after acquire
     uint32_t imageIndex;
     VkResult acquireResult = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
-                          imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+                          imageAvailableSemaphores[0], VK_NULL_HANDLE, &imageIndex);
 
     if (acquireResult != VK_SUCCESS) {
-        // Handle swapchain recreation if needed
-        return;
+        return;  // Handle swapchain recreation if needed
     }
 
-    // Reset and record command buffer
-    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
-    recordCommandBuffer(currentFrame);
+    // Reset and record command buffer for the acquired image
+    vkResetCommandBuffer(commandBuffers[imageIndex], 0);
+    recordCommandBuffer(imageIndex);
 
-    // Submit work
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
-    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+    // Submit work using image-based semaphores
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[imageIndex]};
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[imageIndex]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
     VkSubmitInfo submitInfo{};
@@ -1252,7 +1280,7 @@ void VulkanApp::draw() {
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+    submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -1260,7 +1288,7 @@ void VulkanApp::draw() {
         throw std::runtime_error("Failed to submit draw command buffer");
     }
 
-    // Present
+    // Present with image-based semaphore
     VkSwapchainKHR swapchains[] = {swapchain};
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1272,6 +1300,7 @@ void VulkanApp::draw() {
 
     vkQueuePresentKHR(graphicsQueue, &presentInfo);
 
+    // Cycle through frames in flight (not swapchain images)
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
