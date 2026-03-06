@@ -4,16 +4,19 @@ project(NN-PBR-Vulkan)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find packages
+# Homebrew paths
+set(HOMEBREW_PREFIX /opt/homebrew)
+
+# Find Vulkan
 find_package(Vulkan REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(glm REQUIRED)
+
+# Direct homebrew paths
+set(GLFW_INCLUDE_DIR ${HOMEBREW_PREFIX}/Cellar/glfw/3.4/include)
+set(GLFW_LIB ${HOMEBREW_PREFIX}/lib/libglfw.dylib)
+set(GLM_INCLUDE_DIR ${HOMEBREW_PREFIX}/Cellar/glm/1.0.1/include)
 
 # Shader compilation
-find_program(GLSLC glslc)
-if(NOT GLSLC)
-    message(FATAL_ERROR "glslc not found. Install the Vulkan SDK.")
-endif()
+find_program(GLSLC glslc REQUIRED)
 
 # Compile shaders
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders)
@@ -47,18 +50,11 @@ add_dependencies(vk_neural_demo compile_shaders)
 
 target_include_directories(vk_neural_demo PRIVATE
     ${Vulkan_INCLUDE_DIRS}
-    ${GLM_INCLUDE_DIRS}
+    ${GLFW_INCLUDE_DIR}
+    ${GLM_INCLUDE_DIR}
 )
 
 target_link_libraries(vk_neural_demo PRIVATE
     Vulkan::Vulkan
-    glfw
-    glm::glm
-)
-
-# Copy shaders to build directory
-add_custom_command(TARGET vk_neural_demo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_BINARY_DIR}/shaders
-        ${CMAKE_BINARY_DIR}/shaders
+    ${GLFW_LIB}
 )
