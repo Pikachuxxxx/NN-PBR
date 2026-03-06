@@ -681,14 +681,28 @@ def load_reference_mips(path: Optional[Path], levels: int, out_channels: int, de
     return [m.to(device) for m in mips]
 
 
-def save_chw_png_ldr(t: torch.Tensor, out_path: Path):
+def save_chw_png_ldr(t: torch.Tensor, out_path: Path, signed_mode: bool = False):
+    """Save CHW tensor to PNG LDR.
+
+    For unsigned BC6 mode: latents are in [0, 1], save directly as uint8 [0, 255].
+    For signed BC6 mode: latents are in [-1, 1], convert to [0, 1] then uint8 [0, 255].
+    """
     if Image is None or np is None:
         raise RuntimeError("Pillow and numpy are required to export PNG previews.")
     x = t.detach().to("cpu")
     if x.shape[0] < 3:
         x = x.repeat(3, 1, 1)[:3]
-    x = x[:3].clamp(-1.0, 1.0)
-    x = ((x + 1.0) * 0.5 * 255.0).round().to(torch.uint8)
+    x = x[:3]
+
+    if signed_mode:
+        # Signed mode: latents in [-1, 1], convert to [0, 1] then uint8
+        x = x.clamp(-1.0, 1.0)
+        x = ((x + 1.0) * 0.5 * 255.0).round().to(torch.uint8)
+    else:
+        # Unsigned mode: latents already in [0, 1], just convert to uint8
+        x = x.clamp(0.0, 1.0)
+        x = (x * 255.0).round().to(torch.uint8)
+
     img = x.permute(1, 2, 0).contiguous().numpy()
     Image.fromarray(img, mode="RGB").save(out_path)
 
@@ -1037,12 +1051,12 @@ def _decode_bc6h_mode12_block(block_bytes: bytes, signed_mode: bool) -> "np.ndar
 
 
 def decode_bc6h_dds_mip0(dds_path: Path, signed_mode: bool) -> "torch.Tensor":
-    """Decode mip0 of a BC6H Mode 12 DDS file → float tensor [3, H, W] in [-1, 1].
+    """Decode mip0 of a BC6H Mode 12 DDS file → float tensor [3, H, W].
 
     Reads the DDS header for W/H, skips to mip0 data (offset 148 bytes),
-    decodes each 4×4 block, and maps to the latent space:
-      UF16 [0, 1]  →  latent [-1, 1]  (same convention as save_chw_png_ldr)
-      SF16 [-1, 1] →  latent [-1, 1]  (pass-through)
+    decodes each 4×4 block, and returns latent space values:
+      UF16 (unsigned) → latent [0, 1]  (soft surrogate produces [0, 1])
+      SF16 (signed)   → latent [-1, 1]  (soft surrogate produces [-1, 1])
     """
     if np is None:
         raise RuntimeError("numpy is required for BC6H DDS decoding.")
@@ -1071,8 +1085,8 @@ def decode_bc6h_dds_mip0(dds_path: Path, signed_mode: bool) -> "torch.Tensor":
             pixels[y0:y0 + rh, x0:x0 + rw_px] = texels[:rh, :rw_px]
 
     t = torch.from_numpy(pixels).permute(2, 0, 1)  # [3, H, W]
-    if not signed_mode:
-        t = t * 2.0 - 1.0  # [0, 1] → [-1, 1]
+    # Unsigned mode: keep [0, 1] (soft surrogate output is [0, 1])
+    # Signed mode: keep [-1, 1] (soft surrogate output is [-1, 1])
     return t
 
 
@@ -1117,7 +1131,7 @@ def export_trained_artifacts(model: NeuralMaterialCompressionModel, out_dir: Pat
         for m, (params, tex) in enumerate(zip(all_params, decoded_mips)):
             stem = f"latent_{i:02d}_mip_{m:02d}"
             # PNG preview from soft-decoded mip
-            save_chw_png_ldr(tex, meta_dir / f"{stem}.png")
+            save_chw_png_ldr(tex, meta_dir / f"{stem}.png", signed_mode=model.bc6_signed_mode)
             # BC6H bytes packed directly from quantized block params
             mip_bytes_list.append(_pack_mip_blocks_to_bc6h_bytes(params, model.bc6_signed_mode))
             latent_files.append({
