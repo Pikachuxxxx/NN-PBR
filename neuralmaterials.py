@@ -642,7 +642,7 @@ class TrainConfig:
     lr_mlp_phase1: float = 1e-3
     gamma_phase1: float = 0.9995
 
-    lr_feat_phase2: float = 5e-5
+    lr_feat_phase2: float = 1e-2
     lr_mlp_phase2: float = 1e-3
     gamma_phase2: float = 0.9999
 

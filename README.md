@@ -201,56 +201,12 @@ Runtime reconstructs: albedo · normalTS · ao · roughness · metallic
 
 ---
 
-## CLI Reference
+## Quick Start
 
-### `prepare_freepbr_material.py`
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--product-url` | required | FreePBR product URL |
-| `--variant-keyword` | `-bl.zip` | preferred zip variant filter |
-| `--size` | `1024` | resize maps to square size (`<=0` = keep source) |
-| `--material-name` | auto | output folder name override |
-| `--out-root` | `data/freepbr/materials` | dataset root |
-
-### `infrerenfe_nural_mateirals.py`
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--mode` | `full` | `train\|full\|infer` |
-| `--reference-pt` | required (train/full) | reference tensor |
-| `--output-dir` | required (train/full) | output root |
-| `--export-dir` | required (infer) | existing export path |
-| `--device` | `auto` | compute device |
-| `--out-channels` | `8` | material output channels |
-| `--ref-mips` | `9` | reference mip levels |
-| `--latent-res` | `512,256,128,64` | latent base resolutions |
-| `--latent-mips` | `8,7,6,5` | mip count per latent |
-| `--hidden-dim` | `16` | MLP hidden width |
-| `--endpoint-bits` | `6` | surrogate endpoint quant bits |
-| `--index-bits` | `3` | surrogate index quant bits |
-| `--batch-size` | `4096` | train batch size |
-| `--phase1-iters` | `5000` | warmup iterations |
-| `--phase2-iters` | `200000` | BC-constrained iterations |
-| `--phase3-iters` | `0` | quantized finetune iterations |
-| `--log-every` | `200` | training log interval |
-| `--interactive-progress` | off | live tqdm phase bars |
-| `--infer-chunk` | `65536` | inference chunk size |
-| `--infer-size` | `auto` | `auto`, `1024`, or `1024x1024` |
-| `--analysis-batch-size` | `131072` | extra random UV/LOD eval batch (full mode) |
-| `--export-true-bc6` | off | run BC6 DDS export after main flow |
-| `--bc6-format` | from metadata | `UF16` or `SF16` |
-
-### `export_true_bc6_dds.py`
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--export-dir` | required | dir with `metadata.json` and latent `.pt` files |
-| `--out-dir` | `<export-dir>/true_bc6_dds` | output directory |
-| `--bc6-format` | from metadata | `UF16` or `SF16` |
-| `--latent-index` | all | encode only this latent index |
-| `--max-latents` | `0` (all) | cap number of latents to encode |
-| `--no-verify` | off | skip BC6H decode + diff verification |
+For full usage guide (with all CLI flags and examples), use the skill:
+```bash
+/nnpbr-usage
+```
 
 ---
 
