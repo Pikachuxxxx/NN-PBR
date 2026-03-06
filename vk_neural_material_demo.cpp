@@ -478,6 +478,7 @@ void VulkanApp::createLogicalDevice() {
 
     std::vector<const char*> deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
         "VK_KHR_portability_subset",  // Required on macOS
     };
 
@@ -1015,59 +1016,7 @@ void VulkanApp::createPipeline() {
         throw std::runtime_error("Failed to create pipeline layout");
     }
     std::cout << "[Pipeline] Pipeline layout created" << std::endl;
-
-    // Create render pass
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = swapChainFormat;  // Use actual swapchain format!
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-
-    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create render pass");
-    }
-    std::cout << "[Pipeline] Render pass created" << std::endl;
-
-    // Create framebuffers
-    std::cout << "[Pipeline] Creating framebuffers..." << std::endl;
-    framebuffers.resize(swapchainImageViews.size());
-    for (size_t i = 0; i < swapchainImageViews.size(); i++) {
-        VkImageView attachments[] = {swapchainImageViews[i]};
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = renderExtent.width;
-        framebufferInfo.height = renderExtent.height;
-        framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create framebuffer");
-        }
-    }
-    std::cout << "[Pipeline] Framebuffers created" << std::endl;
+    std::cout << "[Pipeline] Using VK_KHR_dynamic_rendering (no render pass needed)" << std::endl;
 
     // Create graphics pipeline with dynamic states
     VkDynamicState dynamicStates[] = {
@@ -1088,8 +1037,20 @@ void VulkanApp::createPipeline() {
     dynamicViewportState.scissorCount = 1;
     dynamicViewportState.pScissors = nullptr;   // Dynamic
 
+    // Setup color attachment format for dynamic rendering
+    VkFormat colorFormat = swapChainFormat;
+    if (colorFormat == VK_FORMAT_UNDEFINED) {
+        colorFormat = VK_FORMAT_B8G8R8A8_UNORM;  // Fallback
+    }
+
+    VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo{};
+    pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+    pipelineRenderingInfo.colorAttachmentCount = 1;
+    pipelineRenderingInfo.pColorAttachmentFormats = &colorFormat;
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.pNext = &pipelineRenderingInfo;
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -1100,7 +1061,7 @@ void VulkanApp::createPipeline() {
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pipelineLayout;
-    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.renderPass = VK_NULL_HANDLE;  // No render pass with dynamic rendering
     pipelineInfo.subpass = 0;
 
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
@@ -1234,26 +1195,34 @@ void VulkanApp::recordCommandBuffer(uint32_t frameIndex) {
         throw std::runtime_error("Failed to begin recording command buffer");
     }
 
-    // We use currentFrame for which framebuffer to render to, but we need to acquire image first
-    // For simplicity in headless mode, use frame 0
-    uint32_t fbIndex = headless ? 0 : frameIndex;
-    if (fbIndex >= framebuffers.size()) {
-        fbIndex = 0;
+    // Get color attachment for dynamic rendering
+    VkFormat colorFormat = swapChainFormat;
+    if (colorFormat == VK_FORMAT_UNDEFINED) {
+        colorFormat = VK_FORMAT_B8G8R8A8_UNORM;
     }
 
-    // Begin render pass
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = framebuffers[fbIndex];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapChainExtent;
+    // Setup color attachment for dynamic rendering
+    VkRenderingAttachmentInfoKHR colorAttachmentInfo{};
+    colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    colorAttachmentInfo.imageView = swapchainImageViews.empty() ? VK_NULL_HANDLE : swapchainImageViews[frameIndex % swapchainImageViews.size()];
+    colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachmentInfo.clearValue = {{0.1f, 0.1f, 0.1f, 1.0f}};
 
-    VkClearValue clearColor = {{0.1f, 0.1f, 0.1f, 1.0f}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    VkRenderingInfoKHR renderingInfo{};
+    renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+    renderingInfo.renderArea.offset = {0, 0};
+    renderingInfo.renderArea.extent = swapChainExtent;
+    renderingInfo.layerCount = 1;
+    renderingInfo.colorAttachmentCount = 1;
+    renderingInfo.pColorAttachments = &colorAttachmentInfo;
 
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    // Use vkCmdBeginRenderingKHR for dynamic rendering
+    auto vkCmdBeginRenderingKHR = (PFN_vkCmdBeginRenderingKHR)vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR");
+    if (vkCmdBeginRenderingKHR) {
+        vkCmdBeginRenderingKHR(commandBuffer, &renderingInfo);
+    }
 
     // Bind pipeline
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -1289,7 +1258,11 @@ void VulkanApp::recordCommandBuffer(uint32_t frameIndex) {
         vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
     }
 
-    vkCmdEndRenderPass(commandBuffer);
+    // End dynamic rendering
+    auto vkCmdEndRenderingKHR = (PFN_vkCmdEndRenderingKHR)vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR");
+    if (vkCmdEndRenderingKHR) {
+        vkCmdEndRenderingKHR(commandBuffer);
+    }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("Failed to record command buffer");
@@ -1634,14 +1607,8 @@ void VulkanApp::cleanup() {
                 if (fence) vkDestroyFence(device, fence, nullptr);
             }
 
-            std::cout << "[Cleanup] Destroying framebuffers..." << std::endl;
-            for (auto framebuffer : framebuffers) {
-                if (framebuffer) vkDestroyFramebuffer(device, framebuffer, nullptr);
-            }
-
             std::cout << "[Cleanup] Destroying pipeline resources..." << std::endl;
             if (pipeline) vkDestroyPipeline(device, pipeline, nullptr);
-            if (renderPass) vkDestroyRenderPass(device, renderPass, nullptr);
             if (pipelineLayout) vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
             if (commandPool) vkDestroyCommandPool(device, commandPool, nullptr);
             if (descriptorPool) vkDestroyDescriptorPool(device, descriptorPool, nullptr);
