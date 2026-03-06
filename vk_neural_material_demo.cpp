@@ -895,8 +895,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (DEBUG TEST - Solid Red)
-    std::vector<char> fragShaderCode = loadShaderFile("solid_red.frag.spv");
+    // Load compiled shaders from SPIR-V (4-QUADRANT LATENT TEXTURES)
+    std::vector<char> fragShaderCode = loadShaderFile("simple_quad.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
