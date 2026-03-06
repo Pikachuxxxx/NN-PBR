@@ -59,6 +59,13 @@ add_custom_command(
     DEPENDS ${CMAKE_SOURCE_DIR}/shaders/test_quad.frag
 )
 
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
+    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/solid_red.frag
+            -o ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
+    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/solid_red.frag
+)
+
 add_custom_target(compile_shaders ALL
     DEPENDS
         ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.vert.spv
@@ -66,6 +73,7 @@ add_custom_target(compile_shaders ALL
         ${CMAKE_BINARY_DIR}/shaders/neural_material_decode_debug.frag.spv
         ${CMAKE_BINARY_DIR}/shaders/simple_quad.frag.spv
         ${CMAKE_BINARY_DIR}/shaders/test_quad.frag.spv
+        ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
 )
 
 # Main executable
