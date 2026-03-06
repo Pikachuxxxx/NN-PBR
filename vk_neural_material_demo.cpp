@@ -904,8 +904,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (DEBUG: simple latent 0 display)
-    std::vector<char> fragShaderCode = loadShaderFile("debug_latent0.frag.spv");
+    // Load compiled shaders from SPIR-V (DEBUG: UV colors to verify quad rendering)
+    std::vector<char> fragShaderCode = loadShaderFile("debug_uv.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
@@ -1117,8 +1117,8 @@ void VulkanApp::createBuffers() {
 
     std::cout << "[Buffers] Setting up quad indices..." << std::endl;
     std::vector<uint16_t> indices = {
-        0, 1, 2,  // First triangle
-        1, 3, 2,  // Second triangle
+        0, 2, 1,  // First triangle (clockwise for front-face)
+        1, 2, 3,  // Second triangle (clockwise for front-face)
     };
 
     indexCount = indices.size();
