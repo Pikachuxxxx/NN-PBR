@@ -162,6 +162,7 @@ private:
     VkQueue graphicsQueue = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    VkFormat swapChainFormat = VK_FORMAT_UNDEFINED;  // Store actual swapchain format
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
     VkExtent2D swapChainExtent{};
@@ -474,6 +475,7 @@ void VulkanApp::createLogicalDevice() {
 
     std::vector<const char*> deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        "VK_KHR_portability_subset",  // Required on macOS
     };
 
     VkDeviceCreateInfo createInfo{};
@@ -501,6 +503,7 @@ void VulkanApp::createSwapchain() {
     vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, formats.data());
 
     VkSurfaceFormatKHR surfaceFormat = formats[0];
+    swapChainFormat = surfaceFormat.format;  // SAVE the actual format!
 
     VkExtent2D extent = capabilities.currentExtent;
     if (extent.width == UINT32_MAX) {
@@ -542,7 +545,7 @@ void VulkanApp::createImageViews() {
         createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         createInfo.image = swapchainImages[i];
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = VK_FORMAT_B8G8R8A8_SRGB;
+        createInfo.format = swapChainFormat;  // Use actual swapchain format!
         createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -1012,7 +1015,7 @@ void VulkanApp::createPipeline() {
 
     // Create render pass
     VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = VK_FORMAT_B8G8R8A8_SRGB;
+    colorAttachment.format = swapChainFormat;  // Use actual swapchain format!
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
