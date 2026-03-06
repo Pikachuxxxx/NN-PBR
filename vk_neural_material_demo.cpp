@@ -612,12 +612,72 @@ void VulkanApp::loadNeuralMaterialAssets() {
         std::cout << "  - Creating image view..." << std::endl;
         createImageView(latentImages[i], VK_FORMAT_BC6H_UFLOAT_BLOCK, latentImageViews[i], ddsFile.mipCount);
 
-        std::cout << "  - Transitioning image layout..." << std::endl;
+        std::cout << "  - Creating staging buffer for texture data (" << ddsFile.data.size() << " bytes)..." << std::endl;
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingMemory;
+        createBuffer(ddsFile.data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     stagingBuffer, stagingMemory);
+
+        std::cout << "  - Copying texture data to staging buffer..." << std::endl;
+        void* stagingData;
+        vkMapMemory(device, stagingMemory, 0, ddsFile.data.size(), 0, &stagingData);
+        std::memcpy(stagingData, ddsFile.data.data(), ddsFile.data.size());
+        vkUnmapMemory(device, stagingMemory);
+
+        std::cout << "  - Transitioning image layout to TRANSFER_DST..." << std::endl;
         transitionImageLayout(latentImages[i], VK_FORMAT_BC6H_UFLOAT_BLOCK,
-                             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                              ddsFile.mipCount);
 
-        std::cout << "  ✓ Latent texture " << i << " loaded" << std::endl;
+        std::cout << "  - Copying staging buffer to GPU image..." << std::endl;
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = commandPool;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer cmdBuf;
+        vkAllocateCommandBuffers(device, &allocInfo, &cmdBuf);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(cmdBuf, &beginInfo);
+
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {ddsFile.width, ddsFile.height, 1};
+
+        vkCmdCopyBufferToImage(cmdBuf, stagingBuffer, latentImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+        vkEndCommandBuffer(cmdBuf);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmdBuf;
+
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(graphicsQueue);
+
+        vkFreeCommandBuffers(device, commandPool, 1, &cmdBuf);
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingMemory, nullptr);
+
+        std::cout << "  - Transitioning image layout to SHADER_READ_ONLY..." << std::endl;
+        transitionImageLayout(latentImages[i], VK_FORMAT_BC6H_UFLOAT_BLOCK,
+                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                             ddsFile.mipCount);
+
+        std::cout << "  ✓ Latent texture " << i << " loaded and uploaded to GPU" << std::endl;
     }
 
     // Load decoder weights
@@ -832,8 +892,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (DEBUG VERSION)
-    std::vector<char> fragShaderCode = loadShaderFile("neural_material_decode_debug.frag.spv");
+    // Load compiled shaders from SPIR-V (SIMPLE QUAD VERSION)
+    std::vector<char> fragShaderCode = loadShaderFile("simple_quad.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
@@ -1515,7 +1575,17 @@ void VulkanApp::transitionImageLayout(VkImage image, VkFormat format, VkImageLay
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
 
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
