@@ -482,9 +482,14 @@ void VulkanApp::createLogicalDevice() {
         "VK_KHR_portability_subset",  // Required on macOS
     };
 
+    // Enable dynamic rendering feature
+    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
+    dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+    dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
+
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pNext = nullptr;
+    createInfo.pNext = &dynamicRenderingFeatures;
     createInfo.queueCreateInfoCount = 1;
     createInfo.pQueueCreateInfos = &queueCreateInfo;
     createInfo.enabledExtensionCount = deviceExtensions.size();
@@ -1195,6 +1200,26 @@ void VulkanApp::recordCommandBuffer(uint32_t frameIndex) {
         throw std::runtime_error("Failed to begin recording command buffer");
     }
 
+    // Transition swapchain image to COLOR_ATTACHMENT_OPTIMAL
+    uint32_t swapImageIndex = frameIndex % swapchainImages.size();
+    if (!swapchainImages.empty()) {
+        VkImageMemoryBarrier imageBarrier{};
+        imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        imageBarrier.srcAccessMask = 0;
+        imageBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageBarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        imageBarrier.image = swapchainImages[swapImageIndex];
+        imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageBarrier.subresourceRange.baseMipLevel = 0;
+        imageBarrier.subresourceRange.levelCount = 1;
+        imageBarrier.subresourceRange.baseArrayLayer = 0;
+        imageBarrier.subresourceRange.layerCount = 1;
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                           0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+    }
+
     // Get color attachment for dynamic rendering
     VkFormat colorFormat = swapChainFormat;
     if (colorFormat == VK_FORMAT_UNDEFINED) {
@@ -1204,7 +1229,7 @@ void VulkanApp::recordCommandBuffer(uint32_t frameIndex) {
     // Setup color attachment for dynamic rendering
     VkRenderingAttachmentInfoKHR colorAttachmentInfo{};
     colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-    colorAttachmentInfo.imageView = swapchainImageViews.empty() ? VK_NULL_HANDLE : swapchainImageViews[frameIndex % swapchainImageViews.size()];
+    colorAttachmentInfo.imageView = swapchainImageViews.empty() ? VK_NULL_HANDLE : swapchainImageViews[swapImageIndex];
     colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -1262,6 +1287,25 @@ void VulkanApp::recordCommandBuffer(uint32_t frameIndex) {
     auto vkCmdEndRenderingKHR = (PFN_vkCmdEndRenderingKHR)vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR");
     if (vkCmdEndRenderingKHR) {
         vkCmdEndRenderingKHR(commandBuffer);
+    }
+
+    // Transition swapchain image to PRESENT_SRC_KHR
+    if (!swapchainImages.empty()) {
+        VkImageMemoryBarrier imageBarrier{};
+        imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        imageBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        imageBarrier.dstAccessMask = 0;
+        imageBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        imageBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        imageBarrier.image = swapchainImages[swapImageIndex];
+        imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageBarrier.subresourceRange.baseMipLevel = 0;
+        imageBarrier.subresourceRange.levelCount = 1;
+        imageBarrier.subresourceRange.baseArrayLayer = 0;
+        imageBarrier.subresourceRange.layerCount = 1;
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                           0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
     }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
