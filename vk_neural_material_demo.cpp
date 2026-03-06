@@ -904,8 +904,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (DEBUG: UV colors to verify quad rendering)
-    std::vector<char> fragShaderCode = loadShaderFile("debug_uv.frag.spv");
+    // Load compiled shaders from SPIR-V (DEBUG: latent_0 mip0 to verify DDS loading)
+    std::vector<char> fragShaderCode = loadShaderFile("debug_latent0.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
