@@ -4,6 +4,9 @@ project(NN-PBR-Vulkan)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Debug symbols for debugging with lldb
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+
 # Homebrew paths
 set(HOMEBREW_PREFIX /opt/homebrew)
 
@@ -52,6 +55,11 @@ target_include_directories(vk_neural_demo PRIVATE
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIR}
     ${GLM_INCLUDE_DIR}
+)
+
+# Pass CMAKE_BINARY_DIR to the source code for shader path resolution
+target_compile_definitions(vk_neural_demo PRIVATE
+    CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}"
 )
 
 target_link_libraries(vk_neural_demo PRIVATE
