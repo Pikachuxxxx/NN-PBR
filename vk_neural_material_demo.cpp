@@ -892,8 +892,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (SIMPLE QUAD VERSION)
-    std::vector<char> fragShaderCode = loadShaderFile("simple_quad.frag.spv");
+    // Load compiled shaders from SPIR-V (TEST VERSION - Simple gradient)
+    std::vector<char> fragShaderCode = loadShaderFile("test_quad.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
@@ -1133,33 +1133,20 @@ void VulkanApp::createPipeline() {
 void VulkanApp::createBuffers() {
     std::cout << "[Buffers] Creating vertex and index buffers..." << std::endl;
 
-    // Create sphere mesh (simplified: 2x2 quads)
-    std::cout << "[Buffers] Setting up vertices..." << std::endl;
+    // Create full-screen quad
+    std::cout << "[Buffers] Setting up full-screen quad vertices..." << std::endl;
     std::vector<Vertex> vertices = {
-        // Quad 0
-        {{-0.9f, 0.9f, 0.0f}, {0.0f, 0.0f}},
-        {{-0.5f, 0.9f, 0.0f}, {1.0f, 0.0f}},
-        {{-0.9f, 0.5f, 0.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
-
-        // Quad 1
-        {{-0.4f, 0.9f, 0.0f}, {0.0f, 0.0f}},
-        {{0.0f, 0.9f, 0.0f}, {1.0f, 0.0f}},
-        {{-0.4f, 0.5f, 0.0f}, {0.0f, 1.0f}},
-        {{0.0f, 0.5f, 0.0f}, {1.0f, 1.0f}},
-
-        // Quad 2
-        {{0.1f, 0.9f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.9f, 0.0f}, {1.0f, 0.0f}},
-        {{0.1f, 0.5f, 0.0f}, {0.0f, 1.0f}},
-        {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
+        // Full-screen quad (normalized device coordinates)
+        {{-1.0f,  1.0f, 0.0f}, {0.0f, 1.0f}},  // Top-left
+        {{ 1.0f,  1.0f, 0.0f}, {1.0f, 1.0f}},  // Top-right
+        {{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},  // Bottom-left
+        {{ 1.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},  // Bottom-right
     };
 
-    std::cout << "[Buffers] Setting up indices..." << std::endl;
+    std::cout << "[Buffers] Setting up quad indices..." << std::endl;
     std::vector<uint16_t> indices = {
-        0, 1, 2, 1, 3, 2,
-        4, 5, 6, 5, 7, 6,
-        8, 9, 10, 9, 11, 10,
+        0, 1, 2,  // First triangle
+        1, 3, 2,  // Second triangle
     };
 
     indexCount = indices.size();
