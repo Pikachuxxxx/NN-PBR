@@ -592,7 +592,7 @@ void VulkanApp::createCommandPool() {
 }
 
 void VulkanApp::loadNeuralMaterialAssets() {
-    std::string exportDir = "/Users/phanisrikar/Desktop/Projects/NN-PBR/runs/iter65k/export";
+    std::string exportDir = "/Users/phanisrikar/Desktop/Projects/NN-PBR/runs/iter4096/export";
     std::cout << "[Assets] Loading from: " << exportDir << std::endl;
 
     // Load DDS latent textures
@@ -895,8 +895,8 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (ULTRA TEST - Pure White)
-    std::vector<char> fragShaderCode = loadShaderFile("white_test.frag.spv");
+    // Load compiled shaders from SPIR-V
+    std::vector<char> fragShaderCode = loadShaderFile("neural_material_decode.frag.spv");
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");

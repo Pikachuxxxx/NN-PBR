@@ -120,8 +120,40 @@ NeuralPBR DecodeNeuralMaterial(vec2 uv)
 
 void main()
 {
-    NeuralPBR pbr = DecodeNeuralMaterial(inUV);
+    // Divide viewport into 2x2 grid
+    // Determine which quadrant we're in based on fragment coordinates
+    vec2 quadUV = fract(inUV * 2.0);  // UV within current quadrant (0-1)
+    vec2 quadIdx = floor(inUV * 2.0); // Which quadrant (0 or 1 in each dimension)
 
-    // Output albedo for now (you can switch to normal or orm)
-    outColor = vec4(pbr.albedo, 1.0);
+    // Determine actual sampling UV (scale back to 0-1)
+    vec2 sampleUV = quadUV;
+
+    // Decode material at this sample point
+    NeuralPBR pbr = DecodeNeuralMaterial(sampleUV);
+
+    // Select output based on quadrant position
+    vec4 result;
+
+    if (quadIdx.x < 0.5) {
+        // Left side
+        if (quadIdx.y < 0.5) {
+            // Top-left: Albedo (RGB)
+            result = vec4(pbr.albedo, 1.0);
+        } else {
+            // Bottom-left: AO (grayscale)
+            result = vec4(vec3(pbr.ao), 1.0);
+        }
+    } else {
+        // Right side
+        if (quadIdx.y < 0.5) {
+            // Top-right: Normal in tangent space (RGB, remapped to [0,1])
+            vec3 normalDisplay = pbr.normalTS * 0.5 + 0.5;
+            result = vec4(normalDisplay, 1.0);
+        } else {
+            // Bottom-right: Roughness + Metallic as RG, AO as B (ORM-like)
+            result = vec4(pbr.roughness, pbr.metallic, pbr.ao, 1.0);
+        }
+    }
+
+    outColor = result;
 }
