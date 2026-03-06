@@ -200,12 +200,12 @@ private:
 
     uint32_t indexCount = 0;
 
-    // Sync
+    // Sync - Triple buffering (per frame in flight, NOT per swapchain image)
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
-    static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+    static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 3;
 
     // Cleanup guard
     bool cleanedUp = false;
@@ -1148,11 +1148,9 @@ void VulkanApp::createBuffers() {
 }
 
 void VulkanApp::createSyncObjects() {
-    // Create one semaphore pair per swapchain image to avoid reuse issues
-    uint32_t imageCount = swapchainImages.size();
-    imageAvailableSemaphores.resize(imageCount);
-    renderFinishedSemaphores.resize(imageCount);
-    // Create one fence per frame in flight for CPU synchronization
+    // Triple buffering: one semaphore pair + fence per frame in flight
+    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -1162,18 +1160,12 @@ void VulkanApp::createSyncObjects() {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    // Create semaphores for each swapchain image
-    for (size_t i = 0; i < imageCount; i++) {
-        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create semaphores");
-        }
-    }
-
-    // Create fences for frames in flight
+    // Create semaphore pair + fence for each frame in flight
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create fence");
+        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create sync objects");
         }
     }
 }
@@ -1252,26 +1244,28 @@ void VulkanApp::recordCommandBuffer(uint32_t frameIndex) {
 }
 
 void VulkanApp::draw() {
-    // Wait for previous frame
+    // Wait for this frame to complete before reusing its resources
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
-    // Acquire next image - use a temporary semaphore, will get actual imageIndex after acquire
+    // Acquire next image using this frame's semaphore
     uint32_t imageIndex;
     VkResult acquireResult = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
-                          imageAvailableSemaphores[0], VK_NULL_HANDLE, &imageIndex);
+                          imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
     if (acquireResult != VK_SUCCESS) {
         return;  // Handle swapchain recreation if needed
     }
 
+    // Reset fence after acquiring (not before!)
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
     // Reset and record command buffer for the acquired image
     vkResetCommandBuffer(commandBuffers[imageIndex], 0);
     recordCommandBuffer(imageIndex);
 
-    // Submit work using image-based semaphores
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[imageIndex]};
-    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[imageIndex]};
+    // Submit work using this frame's semaphores
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
     VkSubmitInfo submitInfo{};
@@ -1288,7 +1282,7 @@ void VulkanApp::draw() {
         throw std::runtime_error("Failed to submit draw command buffer");
     }
 
-    // Present with image-based semaphore
+    // Present with this frame's semaphore
     VkSwapchainKHR swapchains[] = {swapchain};
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1300,7 +1294,7 @@ void VulkanApp::draw() {
 
     vkQueuePresentKHR(graphicsQueue, &presentInfo);
 
-    // Cycle through frames in flight (not swapchain images)
+    // Move to next frame in flight
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
