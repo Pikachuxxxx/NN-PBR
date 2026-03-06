@@ -577,23 +577,17 @@ def main():
             (output_dir / "run_report.json").write_text(json.dumps(report, indent=2))
             print(json.dumps(report, indent=2))
         else:
-            if args.use_export_latents:
-                print(
-                    "[infer] --use-export-latents: decoding from BC6H DDS latents + decoder "
-                    "(validates export fidelity)"
-                )
-                pred_base = _render_mip0_from_export(
-                    export_dir=export_dir,
-                    device=device,
-                    chunk=args.infer_chunk,
-                    infer_size=args.infer_size,
-                )
-            else:
-                print("[infer] rendering full-resolution mip0 from trained model")
-                pred_base = _render_mip0_from_model(
-                    model, h=h, w=w, out_channels=args.out_channels,
-                    device=device, chunk=args.infer_chunk,
-                )
+            # Always use exported BC6H DDS latents in full mode to match production (infer mode)
+            print(
+                "[full] rendering from exported BC6H DDS latents + decoder "
+                "(validates export fidelity and shows production results)"
+            )
+            pred_base = _render_mip0_from_export(
+                export_dir=export_dir,
+                device=device,
+                chunk=args.infer_chunk,
+                infer_size=args.infer_size,
+            )
             infer_out = output_dir / "inference"
             infer_paths = _save_inference_maps(pred_base, infer_out)
 
@@ -634,7 +628,7 @@ def main():
 
             report = {
                 "mode": "full",
-                "inference_source": "export_latents" if args.use_export_latents else "trained_model",
+                "inference_source": "export_latents",  # Full mode always uses exported BC6H DDS
                 "reference_pt": str(args.reference_pt),
                 "export_dir": str(export_dir),
                 "device": device_str,
