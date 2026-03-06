@@ -211,6 +211,7 @@ void VulkanApp::initWindow() {
 }
 
 void VulkanApp::initVulkan() {
+    std::cout << "\n=== Initializing Vulkan ===" << std::endl;
     createInstance();
     createSurface();
     selectPhysicalDevice();
@@ -224,34 +225,62 @@ void VulkanApp::initVulkan() {
     createPipeline();
     createBuffers();
     createSyncObjects();
+    std::cout << "=== Vulkan Initialization Complete ===" << std::endl;
 }
 
 void VulkanApp::createInstance() {
+    std::cout << "Creating Vulkan instance..." << std::endl;
+
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "NN-PBR Demo";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_3;
+    appInfo.apiVersion = VK_API_VERSION_1_2;  // Use 1.2 for broader compatibility
 
+    // Get GLFW-required extensions (must call after glfwInit())
     uint32_t glfwExtCount = 0;
     const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
 
-    std::vector<const char*> extensions(glfwExts, glfwExts + glfwExtCount);
-    extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-    extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    std::vector<const char*> extensions;
+
+    if (glfwExts && glfwExtCount > 0) {
+        extensions.insert(extensions.begin(), glfwExts, glfwExts + glfwExtCount);
+        std::cout << "GLFW extensions required:" << std::endl;
+        for (uint32_t i = 0; i < glfwExtCount; i++) {
+            std::cout << "  - " << glfwExts[i] << std::endl;
+        }
+    }
+
+    // Add platform-specific extensions
+#ifdef __APPLE__
+    // On macOS, add MoltenVK portability enumeration
+    extensions.push_back("VK_KHR_portability_enumeration");
+    std::cout << "Added (macOS): VK_KHR_portability_enumeration" << std::endl;
+#endif
+
+    std::cout << "Total extensions: " << extensions.size() << std::endl;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledExtensionCount = extensions.size();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
     createInfo.enabledLayerCount = 0;
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
+#ifdef __APPLE__
+    // Enable portability enumeration on macOS
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+
+    VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
+    if (result != VK_SUCCESS) {
+        std::cerr << "ERROR: vkCreateInstance failed with code " << static_cast<int>(result) << std::endl;
         throw std::runtime_error("Failed to create Vulkan instance");
     }
+
+    std::cout << "✓ Vulkan instance created" << std::endl;
 }
 
 void VulkanApp::createSurface() {
