@@ -605,7 +605,7 @@ void VulkanApp::loadNeuralMaterialAssets() {
 
         std::cout << "  - Creating image..." << std::endl;
         createImage(ddsFile.width, ddsFile.height, VK_FORMAT_BC6H_UFLOAT_BLOCK,
-                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     latentImages[i], latentMemory[i], ddsFile.mipCount);
 

@@ -3,10 +3,11 @@
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outColor;
 
-layout(binding = 0) uniform sampler2D gTexture0;
-layout(binding = 1) uniform sampler2D gTexture1;
-layout(binding = 2) uniform sampler2D gTexture2;
-layout(binding = 3) uniform sampler2D gTexture3;
+// Textures are at bindings 1-4 (binding 0 is decoder weights)
+layout(binding = 1) uniform sampler2D gTexture0;
+layout(binding = 2) uniform sampler2D gTexture1;
+layout(binding = 3) uniform sampler2D gTexture2;
+layout(binding = 4) uniform sampler2D gTexture3;
 
 void main()
 {
