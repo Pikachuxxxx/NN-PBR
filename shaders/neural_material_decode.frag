@@ -32,8 +32,8 @@ struct NeuralPBR
     float metallic;
 };
 
-// Decoder weights (FP16 as floats)
-layout(std140, binding = 0) readonly buffer DecoderWeights {
+// Decoder weights uploaded as tightly packed FP32 values.
+layout(std430, binding = 0) readonly buffer DecoderWeights {
     float weights[];
 } gDecoderWeights;
 
@@ -51,21 +51,22 @@ layout(std140, binding = 5) uniform NeuralMaterialCB {
     float gLodBias3;
 };
 
-vec3 SampleLatent(sampler2D tex, vec2 uv, float lodBias)
+vec3 SampleLatent(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, float lodBias)
 {
-    // Convert LOD bias to mip level
-    float mip = -lodBias;
-    return textureLod(tex, uv, mip).xyz;
+    float s = exp2(lodBias);
+    return textureGrad(tex, uv, duvdx * s, duvdy * s).xyz;
 }
 
 NeuralPBR DecodeNeuralMaterial(vec2 uv)
 {
     float x[IN_DIM];
+    vec2 duvdx = dFdx(uv);
+    vec2 duvdy = dFdy(uv);
 
-    vec3 l0 = SampleLatent(gLatentTex0, uv, gLodBias0);
-    vec3 l1 = SampleLatent(gLatentTex1, uv, gLodBias1);
-    vec3 l2 = SampleLatent(gLatentTex2, uv, gLodBias2);
-    vec3 l3 = SampleLatent(gLatentTex3, uv, gLodBias3);
+    vec3 l0 = SampleLatent(gLatentTex0, uv, duvdx, duvdy, gLodBias0);
+    vec3 l1 = SampleLatent(gLatentTex1, uv, duvdx, duvdy, gLodBias1);
+    vec3 l2 = SampleLatent(gLatentTex2, uv, duvdx, duvdy, gLodBias2);
+    vec3 l3 = SampleLatent(gLatentTex3, uv, duvdx, duvdy, gLodBias3);
 
     x[0]  = l0.x; x[1]  = l0.y; x[2]  = l0.z;
     x[3]  = l1.x; x[4]  = l1.y; x[5]  = l1.z;
@@ -104,8 +105,7 @@ NeuralPBR DecodeNeuralMaterial(vec2 uv)
     }
 
     NeuralPBR o;
-    // Convert [-1, 1] to [0, 1]
-    o.albedo = clamp(vec3(y[0], y[1], y[2]) * 0.5 + 0.5, 0.0, 1.0);
+    o.albedo = clamp(vec3(y[0], y[1], y[2]), 0.0, 1.0);
 
     float nx = y[3];
     float ny = y[4];

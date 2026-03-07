@@ -11,6 +11,8 @@
 #include <memory>
 #include <map>
 #include <filesystem>
+#include <regex>
+#include <sstream>
 
 // CMAKE build directory (set during compilation)
 #ifndef CMAKE_BINARY_DIR
@@ -74,6 +76,85 @@ struct DDSFile {
     bool isBc6h;
     bool isRgba16f;  // Added for RGBA16F format support
 };
+
+struct ExportMetadata {
+    std::filesystem::path exportDir;
+    uint32_t latentCount = 0;
+    uint32_t hiddenDim = 0;
+    uint32_t outDim = 0;
+    std::string bc6Format;
+    std::array<float, 4> lodBiases{{-1.0f, -2.0f, -3.0f, -4.0f}};
+};
+
+static std::filesystem::path defaultExportDir() {
+    return std::filesystem::path(CMAKE_BINARY_DIR).parent_path() / "runs" / "mode10_paper512_512_cpu" / "export";
+}
+
+static std::string loadTextFile(const std::filesystem::path& path) {
+    std::ifstream file(path);
+    if (!file) {
+        throw std::runtime_error("Failed to open text file: " + path.string());
+    }
+    std::ostringstream oss;
+    oss << file.rdbuf();
+    return oss.str();
+}
+
+static uint32_t extractJsonUInt(const std::string& text, const std::string& key) {
+    const std::regex pattern("\"" + key + "\"\\s*:\\s*(\\d+)");
+    std::smatch match;
+    if (!std::regex_search(text, match, pattern)) {
+        throw std::runtime_error("Failed to find integer key in metadata.json: " + key);
+    }
+    return static_cast<uint32_t>(std::stoul(match[1].str()));
+}
+
+static std::string extractJsonString(const std::string& text, const std::string& key) {
+    const std::regex pattern("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
+    std::smatch match;
+    if (!std::regex_search(text, match, pattern)) {
+        throw std::runtime_error("Failed to find string key in metadata.json: " + key);
+    }
+    return match[1].str();
+}
+
+static std::array<float, 4> extractJsonFloatArray4(const std::string& text, const std::string& key) {
+    const std::regex pattern("\"" + key + "\"\\s*:\\s*\\[([^\\]]+)\\]");
+    std::smatch match;
+    if (!std::regex_search(text, match, pattern)) {
+        throw std::runtime_error("Failed to find float array key in metadata.json: " + key);
+    }
+
+    std::array<float, 4> values{};
+    std::stringstream ss(match[1].str());
+    std::string token;
+    size_t index = 0;
+    while (std::getline(ss, token, ',')) {
+        if (index >= values.size()) {
+            throw std::runtime_error("Unexpected lod_biases length in metadata.json");
+        }
+        values[index++] = std::stof(token);
+    }
+    if (index != values.size()) {
+        throw std::runtime_error("Expected exactly 4 lod_biases entries in metadata.json");
+    }
+    return values;
+}
+
+static ExportMetadata loadExportMetadata(const std::filesystem::path& exportDir) {
+    ExportMetadata metadata;
+    metadata.exportDir = exportDir;
+
+    const auto metadataPath = exportDir / "metadata.json";
+    const std::string json = loadTextFile(metadataPath);
+
+    metadata.latentCount = extractJsonUInt(json, "latent_count");
+    metadata.hiddenDim = extractJsonUInt(json, "hidden_dim");
+    metadata.outDim = extractJsonUInt(json, "out_dim");
+    metadata.bc6Format = extractJsonString(json, "bc6_format");
+    metadata.lodBiases = extractJsonFloatArray4(json, "lod_biases");
+    return metadata;
+}
 
 // Load DDS file, handles DX10 extended header (required for BC6H)
 DDSFile loadDDS(const std::string& path) {
@@ -164,7 +245,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 // Vulkan utility functions
 class VulkanApp {
 public:
-    VulkanApp(bool headless = false);
+    VulkanApp(std::filesystem::path exportDir, bool headless = false, bool debugView = true);
     ~VulkanApp();
 
     void run();
@@ -172,6 +253,9 @@ public:
 private:
     // Configuration
     bool headless = false;
+    bool debugView = true;
+    std::filesystem::path exportDir;
+    ExportMetadata exportMetadata;
 
     // Window
     GLFWwindow* window = nullptr;
@@ -272,8 +356,11 @@ private:
                                VkImageLayout newLayout, uint32_t mipLevels = 1);
 };
 
-VulkanApp::VulkanApp(bool headless_mode) : headless(headless_mode) {
+VulkanApp::VulkanApp(std::filesystem::path export_dir, bool headless_mode, bool debug_view)
+    : headless(headless_mode), debugView(debug_view), exportDir(std::move(export_dir)) {
     std::cout << "[Init] Headless mode: " << (headless ? "ON" : "OFF") << std::endl;
+    std::cout << "[Init] Debug view: " << (debugView ? "ON" : "OFF") << std::endl;
+    std::cout << "[Init] Export dir: " << exportDir << std::endl;
 }
 
 VulkanApp::~VulkanApp() {
@@ -657,33 +744,35 @@ void VulkanApp::createCommandPool() {
 }
 
 void VulkanApp::loadNeuralMaterialAssets() {
-    std::string exportDir = "/Users/phanisrikar/Desktop/Projects/NN-PBR/runs/iter512/export";
+    exportMetadata = loadExportMetadata(exportDir);
+    if (exportMetadata.latentCount != 4) {
+        throw std::runtime_error("Vulkan sample currently supports exactly 4 latent textures.");
+    }
+    if (exportMetadata.hiddenDim != 16 || exportMetadata.outDim != 8) {
+        throw std::runtime_error("Vulkan sample currently supports decoder dims 12 -> 16 -> 8 only.");
+    }
+    if (exportMetadata.bc6Format != "DXGI_FORMAT_BC6H_UF16") {
+        throw std::runtime_error("Vulkan sample currently supports DXGI_FORMAT_BC6H_UF16 only.");
+    }
+
     std::cout << "[Assets] Loading from: " << exportDir << std::endl;
 
     // Load DDS latent textures
     for (int i = 0; i < 4; i++) {
         std::cout << "[Assets] Loading latent texture " << i << "..." << std::endl;
-        // Try RGBA16F first (v5 export), fall back to BC6H (legacy)
         std::string idx = (i < 10 ? "0" : "") + std::to_string(i);
-        std::string ddsPath = exportDir + "/latent_" + idx + ".f16.dds";
-        if (!std::ifstream(ddsPath).good()) {
-            ddsPath = exportDir + "/latent_" + idx + ".bc6.dds";
-        }
+        std::string ddsPath = (exportDir / ("latent_" + idx + ".bc6.dds")).string();
 
         std::cout << "  - Path: " << ddsPath << std::endl;
         DDSFile ddsFile = loadDDS(ddsPath);
 
-        VkFormat texFormat;
-        if (ddsFile.isRgba16f) {
-            texFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-        } else if (ddsFile.isBc6h) {
-            texFormat = VK_FORMAT_BC6H_UFLOAT_BLOCK;
-        } else {
+        if (!ddsFile.isBc6h) {
             throw std::runtime_error("Unsupported DDS format in: " + ddsPath);
         }
+        VkFormat texFormat = VK_FORMAT_BC6H_UFLOAT_BLOCK;
         std::cout << "  - Loaded: " << ddsFile.width << "x" << ddsFile.height
                   << " mips=" << ddsFile.mipCount
-                  << " format=" << (ddsFile.isRgba16f ? "RGBA16F" : "BC6H_UF16") << std::endl;
+                  << " format=BC6H_UF16" << std::endl;
         
         createImage(ddsFile.width, ddsFile.height, texFormat,
                     VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -713,15 +802,9 @@ void VulkanApp::loadNeuralMaterialAssets() {
         for (uint32_t mip = 0; mip < ddsFile.mipCount; ++mip) {
             uint32_t mipW = std::max(1u, ddsFile.width  >> mip);
             uint32_t mipH = std::max(1u, ddsFile.height >> mip);
-            size_t   mipBytes;
-            if (ddsFile.isRgba16f) {
-                mipBytes = (size_t)mipW * mipH * 8; // 4 × float16
-            } else {
-                // BC6H: 16 bytes per 4×4 block
-                uint32_t bw = std::max(1u, (mipW + 3) / 4);
-                uint32_t bh = std::max(1u, (mipH + 3) / 4);
-                mipBytes = (size_t)bw * bh * 16;
-            }
+            uint32_t bw = std::max(1u, (mipW + 3) / 4);
+            uint32_t bh = std::max(1u, (mipH + 3) / 4);
+            size_t mipBytes = (size_t)bw * bh * 16;
             VkBufferImageCopy region{};
             region.bufferOffset      = bufOffset;
             region.bufferRowLength   = 0;
@@ -777,7 +860,7 @@ void VulkanApp::loadNeuralMaterialAssets() {
 
     // Load decoder weights
     std::cout << "[Assets] Loading decoder weights..." << std::endl;
-    std::string decoderPath = exportDir + "/decoder_fp16.bin";
+    std::string decoderPath = (exportDir / "decoder_fp16.bin").string();
     std::cout << "  - Path: " << decoderPath << std::endl;
 
     std::ifstream decoderFile(decoderPath, std::ios::binary);
@@ -798,6 +881,18 @@ void VulkanApp::loadNeuralMaterialAssets() {
     std::cout << "  - Converting FP16 to FP32..." << std::endl;
     uint16_t* fp16Data = (uint16_t*)decoderData.data();
     size_t numValues = decoderSize / 2;  // FP16 is 2 bytes per value
+    const size_t expectedValues =
+        (12 * exportMetadata.hiddenDim)
+        + exportMetadata.hiddenDim
+        + (exportMetadata.outDim * exportMetadata.hiddenDim)
+        + exportMetadata.outDim;
+    if (numValues != expectedValues) {
+        throw std::runtime_error(
+            "decoder_fp16.bin size mismatch; expected "
+            + std::to_string(expectedValues) + " FP16 values, got "
+            + std::to_string(numValues)
+        );
+    }
     std::vector<float> fp32Data(numValues);
     for (size_t i = 0; i < numValues; i++) {
         fp32Data[i] = fp16_to_fp32(fp16Data[i]);
@@ -824,7 +919,12 @@ void VulkanApp::loadNeuralMaterialAssets() {
 
     // Load LOD biases (from metadata)
     std::cout << "[Assets] Setting LOD biases..." << std::endl;
-    float lodBiases[4] = {-1.0f, -2.0f, -3.0f, -4.0f};
+    float lodBiases[4] = {
+        exportMetadata.lodBiases[0],
+        exportMetadata.lodBiases[1],
+        exportMetadata.lodBiases[2],
+        exportMetadata.lodBiases[3],
+    };
 
     std::cout << "  - Creating buffer..." << std::endl;
     createBuffer(sizeof(lodBiases), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -1003,8 +1103,11 @@ std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
 void VulkanApp::createPipeline() {
     std::cout << "[Pipeline] Starting pipeline creation..." << std::endl;
 
-    // Load compiled shaders from SPIR-V (Debug: show latents top + decoded outputs bottom)
-    std::vector<char> fragShaderCode = loadShaderFile("neural_material_decode_debug.frag.spv");
+    // Load compiled shaders from SPIR-V
+    const char* fragShaderName = debugView
+        ? "neural_material_decode_debug.frag.spv"
+        : "neural_material_decode.frag.spv";
+    std::vector<char> fragShaderCode = loadShaderFile(fragShaderName);
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
@@ -1822,11 +1925,18 @@ void VulkanApp::cleanup() {
 
 int main(int argc, char* argv[]) {
     try {
-        bool headless = false;  // Check for --headless flag
+        bool headless = false;
+        bool debugView = true;
+        std::filesystem::path exportDir = defaultExportDir();
         for (int i = 1; i < argc; i++) {
             if (std::string(argv[i]) == "--headless") {
                 headless = true;
-                break;
+            } else if (std::string(argv[i]) == "--final-view") {
+                debugView = false;
+            } else if (std::string(argv[i]) == "--debug-view") {
+                debugView = true;
+            } else if (std::string(argv[i]) == "--export-dir" && (i + 1) < argc) {
+                exportDir = argv[++i];
             }
         }
 
@@ -1836,9 +1946,11 @@ int main(int argc, char* argv[]) {
         } else {
             std::cout << "Mode: WINDOWED (Press ESC to exit)" << std::endl;
         }
+        std::cout << "Export dir: " << exportDir << std::endl;
+        std::cout << "View: " << (debugView ? "DEBUG" : "FINAL") << std::endl;
         std::cout << std::endl;
 
-        VulkanApp app(headless);
+        VulkanApp app(exportDir, headless, debugView);
         app.run();
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

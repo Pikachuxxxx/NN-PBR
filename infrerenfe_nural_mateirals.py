@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -461,18 +459,6 @@ def _save_full_plots(
     }
 
 
-def _run_true_bc6_export(export_dir: Path, bc6_format: str | None):
-    cmd = [
-        sys.executable,
-        str((Path(__file__).parent / "export_true_bc6_dds.py").resolve()),
-        "--export-dir",
-        str(export_dir),
-    ]
-    if bc6_format:
-        cmd.extend(["--bc6-format", bc6_format])
-    subprocess.run(cmd, check=True)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["train", "full", "infer"], default="full")
@@ -492,22 +478,18 @@ def main():
     ap.add_argument("--phase1-iters", type=int, default=5000)
     ap.add_argument("--phase2-iters", type=int, default=200000)
     ap.add_argument("--phase3-iters", type=int, default=0)
+    ap.add_argument("--lr-feat-phase1", type=float, default=5e-2)
+    ap.add_argument("--lr-mlp-phase1", type=float, default=1e-3)
+    ap.add_argument("--gamma-phase1", type=float, default=0.9995)
+    ap.add_argument("--lr-feat-phase2", type=float, default=1e-2)
+    ap.add_argument("--lr-mlp-phase2", type=float, default=1e-3)
+    ap.add_argument("--gamma-phase2", type=float, default=0.9999)
+    ap.add_argument("--lr-mlp-phase3", type=float, default=5e-4)
     ap.add_argument("--log-every", type=int, default=200)
     ap.add_argument("--interactive-progress", action="store_true", help="Enable tqdm-like live progress bars during training.")
     ap.add_argument("--infer-chunk", type=int, default=65536)
     ap.add_argument("--infer-size", type=str, default="auto", help="'auto', '1024', or '1024x1024'")
     ap.add_argument("--analysis-batch-size", type=int, default=131072, help="Extra random UV/LOD batch size for analysis metrics in full mode.")
-
-    ap.add_argument("--export-true-bc6", action="store_true",
-                    help="(Deprecated) DDS files are now written by export automatically.")
-    ap.add_argument("--bc6-format", type=str, default=None)
-    ap.add_argument(
-        "--use-export-latents", action="store_true",
-        help=(
-            "In full mode: run inference from exported PNG latents + decoder_state.pt "
-            "instead of the in-memory trained model. Validates that the export is faithful."
-        ),
-    )
     args = ap.parse_args()
 
     mode = args.mode
@@ -553,6 +535,13 @@ def main():
             phase1_iters=args.phase1_iters,
             phase2_iters=args.phase2_iters,
             phase3_iters=args.phase3_iters,
+            lr_feat_phase1=args.lr_feat_phase1,
+            lr_mlp_phase1=args.lr_mlp_phase1,
+            gamma_phase1=args.gamma_phase1,
+            lr_feat_phase2=args.lr_feat_phase2,
+            lr_mlp_phase2=args.lr_mlp_phase2,
+            gamma_phase2=args.gamma_phase2,
+            lr_mlp_phase3=args.lr_mlp_phase3,
             log_every=args.log_every,
             interactive_progress=args.interactive_progress,
         )
@@ -633,6 +622,12 @@ def main():
                 "reference_pt": str(args.reference_pt),
                 "export_dir": str(export_dir),
                 "device": device_str,
+                "bc6_export": {
+                    "format": "DXGI_FORMAT_BC6H_UF16",
+                    "mode": 10,
+                    "endpoint_bits": 6,
+                    "index_bits": 3,
+                },
                 "training_iters": {
                     "phase1": args.phase1_iters,
                     "phase2": args.phase2_iters,
@@ -674,17 +669,18 @@ def main():
             "mode": "infer",
             "export_dir": str(export_dir),
             "device": device_str,
+            "bc6_export": {
+                "format": "DXGI_FORMAT_BC6H_UF16",
+                "mode": 10,
+                "endpoint_bits": 6,
+                "index_bits": 3,
+            },
             "decoded_shape_chw": list(pred.shape),
             "storage_bytes": storage,
             "inference_outputs": infer_paths,
         }
         (infer_out / "run_report.json").write_text(json.dumps(report, indent=2))
         print(json.dumps(report, indent=2))
-
-    if args.export_true_bc6:
-        print("[export] true BC6 DDS")
-        target_export_dir = args.export_dir if mode == "infer" else (args.export_dir or (args.output_dir / "export"))
-        _run_true_bc6_export(target_export_dir, bc6_format=args.bc6_format)
 
 if __name__ == "__main__":
     main()
