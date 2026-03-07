@@ -95,9 +95,9 @@ NeuralPBR DecodeNeuralMaterial(vec2 uv)
     float nz = sqrt(clamp(1.0 - nx * nx - ny * ny, 0.0, 1.0));
     o.normalTS = normalize(vec3(nx, ny, nz));
 
-    o.ao        = clamp(y[5] * 0.5 + 0.5, 0.0, 1.0);
-    o.roughness = clamp(y[6] * 0.5 + 0.5, 0.0, 1.0);
-    o.metallic  = clamp(y[7] * 0.5 + 0.5, 0.0, 1.0);
+    o.ao        = clamp(y[5], 0.0, 1.0);
+    o.roughness = clamp(y[6], 0.0, 1.0);
+    o.metallic  = clamp(y[7], 0.0, 1.0);
     return o;
 }
 

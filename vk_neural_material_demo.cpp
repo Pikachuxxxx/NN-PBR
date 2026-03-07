@@ -72,6 +72,7 @@ struct DDSFile {
     uint32_t width, height;
     uint32_t mipCount;
     bool isBc6h;
+    bool isRgba16f;  // Added for RGBA16F format support
 };
 
 // Load DDS file, handles DX10 extended header (required for BC6H)
@@ -115,6 +116,7 @@ DDSFile loadDDS(const std::string& path) {
     result.height = height;
     result.mipCount = mipCount > 0 ? mipCount : 1;
     result.isBc6h = isDX10 && (dxgiFormat == 95); // DXGI_FORMAT_BC6H_UF16 = 95
+    result.isRgba16f = isDX10 && (dxgiFormat == 10); // DXGI_FORMAT_R16G16B16A16_FLOAT = 10
     result.data.assign(raw.begin() + pixelDataOffset, raw.end());
 
     return result;
@@ -279,17 +281,24 @@ VulkanApp::~VulkanApp() {
 }
 
 void VulkanApp::initWindow() {
+    std::cout << "[Window] Initializing GLFW..." << std::endl;
     if (!glfwInit()) {
         throw std::runtime_error("Failed to init GLFW");
     }
 
+    std::cout << "[Window] GLFW initialized successfully" << std::endl;
+    std::cout << "[Window] GLFW version: " << glfwGetVersionString() << std::endl;
+
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
+    std::cout << "[Window] Creating window (1280x800)..." << std::endl;
     window = glfwCreateWindow(1280, 800, "NN-PBR Vulkan Demo", nullptr, nullptr);
     if (!window) {
         throw std::runtime_error("Failed to create window");
     }
+
+    std::cout << "[Window] Window created successfully at " << window << std::endl;
 }
 
 void VulkanApp::initVulkan() {
@@ -382,6 +391,16 @@ void VulkanApp::createInstance() {
         for (uint32_t i = 0; i < glfwExtCount; i++) {
             std::cout << "  - " << glfwExts[i] << std::endl;
         }
+    } else {
+        std::cout << "WARNING: glfwGetRequiredInstanceExtensions returned NULL or 0 extensions" << std::endl;
+        // Fallback for headless or when GLFW doesn't return extensions
+        // Always add VK_KHR_surface as it's needed for window surfaces
+        extensions.push_back("VK_KHR_surface");
+        std::cout << "Added (fallback): VK_KHR_surface" << std::endl;
+#ifdef __APPLE__
+        extensions.push_back("VK_EXT_metal_surface");
+        std::cout << "Added (fallback): VK_EXT_metal_surface" << std::endl;
+#endif
     }
 
     // Add platform-specific extensions
@@ -396,6 +415,10 @@ void VulkanApp::createInstance() {
     std::cout << "Added: VK_EXT_DEBUG_UTILS_EXTENSION_NAME" << std::endl;
 
     std::cout << "Total extensions: " << extensions.size() << std::endl;
+    std::cout << "All extensions to be enabled:" << std::endl;
+    for (const auto& ext : extensions) {
+        std::cout << "  - " << ext << std::endl;
+    }
 
     // Enable validation layers
     const char* validationLayers[] = {"VK_LAYER_KHRONOS_validation"};
@@ -456,9 +479,22 @@ void VulkanApp::createInstance() {
 }
 
 void VulkanApp::createSurface() {
-    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create surface");
+    if (!window) {
+        throw std::runtime_error("Window is NULL");
     }
+
+    if (!instance) {
+        throw std::runtime_error("Vulkan instance is NULL");
+    }
+
+    VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    if (result != VK_SUCCESS) {
+        std::string errorMsg = "Failed to create surface (Vulkan error code: " + std::to_string(result) + ")";
+        std::cerr << "ERROR: " << errorMsg << std::endl;
+        throw std::runtime_error(errorMsg);
+    }
+
+    std::cout << "✓ Surface created successfully" << std::endl;
 }
 
 void VulkanApp::selectPhysicalDevice() {
@@ -621,7 +657,7 @@ void VulkanApp::createCommandPool() {
 }
 
 void VulkanApp::loadNeuralMaterialAssets() {
-    std::string exportDir = "/Users/phanisrikar/Desktop/Projects/NN-PBR/runs/iter4096/export";
+    std::string exportDir = "/Users/phanisrikar/Desktop/Projects/NN-PBR/runs/iter512/export";
     std::cout << "[Assets] Loading from: " << exportDir << std::endl;
 
     // Load DDS latent textures
@@ -648,7 +684,7 @@ void VulkanApp::loadNeuralMaterialAssets() {
         std::cout << "  - Loaded: " << ddsFile.width << "x" << ddsFile.height
                   << " mips=" << ddsFile.mipCount
                   << " format=" << (ddsFile.isRgba16f ? "RGBA16F" : "BC6H_UF16") << std::endl;
-
+        
         createImage(ddsFile.width, ddsFile.height, texFormat,
                     VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
