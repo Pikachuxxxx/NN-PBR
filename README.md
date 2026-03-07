@@ -42,9 +42,9 @@ Training loss + storage comparison:
    - `latent_XX_mip_YY.pt` — float latent mip tensors
    - `latent_XX_mip_YY.png` — LDR debug previews (mapped from `[-1,1]` to `[0,255]`)
    - `metadata.json` — model dims, latent inventory, lod biases
-4. Optionally export true BC6 DDS textures (`export_true_bc6_dds.py`) — pure Python, no external tools:
+4. Export BC6 DDS textures (`export_true_bc6_dds.py`) — the active cleanup target is spec-correct BC6H Mode 10 packing:
    - builds one mip-chained DDS per latent (`latent_XX.bc6.dds`)
-   - pure Python BC6H Mode 11 encoder with PSNR verification
+   - see `BC6_MODE10_TODO.md` for the paper-aligned export checklist
 5. Runtime shader samples BC6 latent textures + runs FP16 MLP decode
 
 ---
@@ -144,7 +144,7 @@ python infrerenfe_nural_mateirals.py \
   --device auto
 ```
 
-### 5) Export True BC6 DDS (pure Python, no external tools)
+### 5) Export BC6 DDS (Mode 10 cleanup in progress)
 
 ```bash
 source .venv/bin/activate
@@ -171,6 +171,8 @@ Outputs (in `<export-dir>/true_bc6_dds/`):
 - `true_bc6_export_report.json` — per-mip PSNR metrics
 - `latent_XX_mip_YY.diff.png` — diff figures (unless `--no-verify`)
 
+Implementation note: the canonical target is paper-aligned BC6H Mode 10 export with 6-bit endpoints, 3-bit indices, and FP16 decoder weights. Track the remaining cleanup in `BC6_MODE10_TODO.md`.
+
 Typical quality: mip0 PSNR 39–45 dB on real latent textures; >60 dB on small mips.
 
 ---
@@ -184,7 +186,7 @@ Typical quality: mip0 PSNR 39–45 dB on real latent textures; >60 dB on small m
 | `decoder_state.pt` | Full-precision PyTorch decoder state dict |
 | `latent_XX_mip_YY.pt` | Float latent mip tensor — canonical source for BC6 export |
 | `latent_XX_mip_YY.png` | LDR debug preview (mapped from `[-1,1]` to `[0,255]`) |
-| `latent_XX.bc6.dds` | True BC6H DDS (mip chain) for runtime GPU loading |
+| `latent_XX.bc6.dds` | BC6H DDS runtime artifact (Mode 10 cleanup target) |
 
 ---
 
@@ -193,7 +195,7 @@ Typical quality: mip0 PSNR 39–45 dB on real latent textures; >60 dB on small m
 From `export/`:
 - `metadata.json`
 - `decoder_fp16.bin`
-- `latent_XX.bc6.dds` (true BC6 DDS per latent)
+- `latent_XX.bc6.dds` (runtime BC6 DDS per latent)
 
 Shader: `shaders/neural_material_decode.hlsl`
 

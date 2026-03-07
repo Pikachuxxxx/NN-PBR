@@ -4,8 +4,8 @@ export_true_bc6_dds.py — Inspect and validate BC6H DDS latent exports.
 
 Pipeline (lossless within BC6H representation):
   trained block params (endpoints_q + indices_q)
-      → integer scale to 11-bit
-      → pack directly into BC6H Mode 12 blocks (16 bytes/block)
+      → final 6-bit / 3-bit quantization
+      → pack directly into BC6H Mode 10 blocks (16 bytes/block)
       → write DDS with full mip chain
 
 No float texture decode/re-encode roundtrip.  The quantized values produced
@@ -86,7 +86,7 @@ def main():
     latent_count = int(meta.get("latent_count", 0))
 
     print(f"[bc6h] Export v{version}  latents={latent_count}  signed={signed_mode}")
-    print(f"[bc6h] Pipeline: block params → integer scale → BC6H Mode 12 blocks (lossless)\n")
+    print(f"[bc6h] Pipeline: block params → final quantization → BC6H Mode 10 blocks (lossless)\n")
 
     if version < 4:
         print(f"  WARNING: legacy export v{version}. Re-export with current code to get v4 DDS.")
