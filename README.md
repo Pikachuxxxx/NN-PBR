@@ -27,6 +27,9 @@ Training loss + storage comparison:
 
 Still facing some issues with full 5k phase 1 and 200k training on a RX9070 GPU afte full training, looks like need to check singned/unsigned BC6H modes
 
+Vulkan app demo with neural shader predicting pixels
+![Vulkan demo](demo/vk_neural_demo.png)
+
 ---
 
 ## Pipeline Summary
@@ -171,6 +174,15 @@ Outputs (in `<export-dir>/true_bc6_dds/`):
 Implementation note: the canonical target is paper-aligned BC6H Mode 10 export with 6-bit endpoints, 3-bit indices, and FP16 decoder weights. Track the remaining cleanup in `BC6_MODE10_TODO.md`.
 
 Typical quality: mip0 PSNR 39–45 dB on real latent textures; >60 dB on small mips.
+
+### 6) Vulkan application demo
+```
+mkdir build && cd build
+cmake ..
+make -j4
+
+./vk_neural_demo --export-dir ~/Desktop/Projects/NN-PBR/runs/full_demo/export
+```
 
 ---
 
