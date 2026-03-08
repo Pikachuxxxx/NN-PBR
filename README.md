@@ -15,20 +15,17 @@ Output channels: `[albedo_r, albedo_g, albedo_b, normal_x, normal_y, ao, roughne
 
 ## Demo
 
+Phase1: 5k | Phase2: 200k iterations on AMD RX9070 GPU
+
 Full analysis dashboard (GT | Neural | Diff | Latent preview):
 
-![Full Analysis](demo/iter60_demo/analysis/gt_vs_neural.png)
-
-Error heatmaps (albedo / normal / ORM):
-
-![Diff](demo/iter60_demo/analysis/gt_vs_neural_diff.png)
+![Full Analysis](demo/all_analysis.png)
 
 Training loss + storage comparison:
 
-![Training Loss](demo/iter60_demo/analysis/training_loss.png)
+![Training Loss](demo/training_loss.png)
 
-> Note: demo outputs above are from an early 60-iter smoke run (pre-refactor).
-> Current code produces `all_analysis.png` and `training_loss.png` with an updated layout.
+Still facing some issues with full 5k phase 1 and 200k training on a RX9070 GPU afte full training, looks like need to check singned/unsigned BC6H modes
 
 ---
 
