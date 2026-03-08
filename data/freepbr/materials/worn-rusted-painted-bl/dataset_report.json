@@ -1,0 +1,18 @@
+{
+  "material_name": "worn-rusted-painted-bl",
+  "reference_pt": "data/freepbr/materials/worn-rusted-painted-bl/reference_8ch.pt",
+  "download_zip": "data/freepbr/materials/worn-rusted-painted-bl/raw/worn-rusted-painted-bl.zip",
+  "maps": {
+    "albedo": "data/freepbr/materials/worn-rusted-painted-bl/extracted/worn-rusted-painted-bl/worn-rusted-painted_albedo.png",
+    "normal": "data/freepbr/materials/worn-rusted-painted-bl/extracted/worn-rusted-painted-bl/worn-rusted-painted_normal-ogl.png",
+    "ao": "data/freepbr/materials/worn-rusted-painted-bl/extracted/worn-rusted-painted-bl/worn-rusted-painted_ao.png",
+    "roughness": "data/freepbr/materials/worn-rusted-painted-bl/extracted/worn-rusted-painted-bl/worn-rusted-painted_roughness.png",
+    "metallic": "data/freepbr/materials/worn-rusted-painted-bl/extracted/worn-rusted-painted-bl/worn-rusted-painted_metallic.png"
+  },
+  "size_chw": [
+    8,
+    1024,
+    1024
+  ],
+  "variant_used": "worn-rusted-painted-bl.zip"
+}

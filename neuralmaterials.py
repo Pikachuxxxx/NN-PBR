@@ -161,6 +161,10 @@ def _decode_mode10_quantized_blocks_torch(
     mask = mask.to(torch.float32).unsqueeze(-1)
 
     e_u = (e_q * (2.0**16) + (2.0**15)) / float(1 << endpoint_bits)
+    # BC6H finish_unquantize: unsigned (val * 31) >> 6, matching §4.2 and the
+    # training surrogate in _decode_soft_blocks.  Without this the reconstructed
+    # values are ~64× too large, making the partition MSE search meaningless.
+    e_u = (e_u * 31.0) / 64.0
     y1 = (
         e_u[:, 0:1, :] * (BC67_WEIGHT_MAX - w).unsqueeze(-1)
         + e_u[:, 1:2, :] * w.unsqueeze(-1)
@@ -447,6 +451,8 @@ class BC6SurrogateBlockLevel(nn.Module):
             raise NotImplementedError("Paper-aligned BC6 training path is currently implemented for unsigned BC6H only.")
 
         e_q = torch.sigmoid(self.endpoints) * ((1 << b) - 1)
+        # unquantize: (e_q << (16-b)) + (1 << (16-b-1)) effectively.
+        # Then BC6H finish_unquantize is (val * 31) >> 6.
         e_u = (e_q * (2.0**16) + (2.0**15)) / (2.0**b)
         e_u = (e_u * 31.0) / 64.0
 
@@ -725,10 +731,10 @@ NeuralMaterialModel = NeuralMaterialCompressionModel
 @dataclass
 class TrainConfig:
     device: str = "cuda"
-    batch_size: int = 8192
+    batch_size: int = 4096 
     phase1_iters: int = 5_000
     phase2_iters: int = 200_000
-    phase3_iters: int = 0
+    phase3_iters: int = 1_000
 
     lr_feat_phase1: float = 5e-2
     lr_mlp_phase1: float = 1e-3
@@ -1613,12 +1619,20 @@ def train(model: NeuralMaterialCompressionModel, ref_mips: List[torch.Tensor], c
     max_lod = float(len(ref_mips) - 1)
     history: List[dict] = []
 
+    # Compile the two forward paths once. fullgraph=False lets the compiler
+    # insert graph breaks for any unsupported ops rather than hard-failing.
+    _fwd_warmup = torch.compile(model.forward_warmup, fullgraph=False)
+    _fwd_bc = torch.compile(model.forward_bc, fullgraph=False)
+
+    _fused = device.type == "cuda"
+
     # ---- Phase 1: warmup (unconstrained latents + decoder)
     opt1 = torch.optim.Adam(
         [
             {"params": list(model.warmup_parameters()), "lr": cfg.lr_feat_phase1},
             {"params": list(model.decoder_parameters()), "lr": cfg.lr_mlp_phase1},
-        ]
+        ],
+        fused=_fused,
     )
     sch1 = torch.optim.lr_scheduler.ExponentialLR(opt1, gamma=cfg.gamma_phase1)
 
@@ -1629,7 +1643,7 @@ def train(model: NeuralMaterialCompressionModel, ref_mips: List[torch.Tensor], c
     for it in (pbar1 if pbar1 is not None else phase1_iter):
         uv, lod = random_uv_lod(cfg.batch_size, max_lod, device)
         target = sample_mips_trilinear(ref_mips, uv, lod, bilinear_mode="bicubic")
-        pred = model.forward_warmup(uv, lod)
+        pred = _fwd_warmup(uv, lod)
         loss = F.mse_loss(pred, target)
         history.append({"phase": 1, "iter": it, "mse": float(loss.item())})
 
@@ -1656,7 +1670,8 @@ def train(model: NeuralMaterialCompressionModel, ref_mips: List[torch.Tensor], c
         [
             {"params": list(model.bc_feature_parameters()), "lr": cfg.lr_feat_phase2},
             {"params": list(model.decoder_parameters()), "lr": cfg.lr_mlp_phase2},
-        ]
+        ],
+        fused=_fused,
     )
     sch2 = torch.optim.lr_scheduler.ExponentialLR(opt2, gamma=cfg.gamma_phase2)
     phase2_iter = range(cfg.phase2_iters)
@@ -1667,7 +1682,7 @@ def train(model: NeuralMaterialCompressionModel, ref_mips: List[torch.Tensor], c
         uv, lod = random_uv_lod(cfg.batch_size, max_lod, device)
         target = sample_mips_trilinear(ref_mips, uv, lod, bilinear_mode="bicubic")
 
-        pred = model.forward_bc(uv, lod)
+        pred = _fwd_bc(uv, lod)
         loss = F.mse_loss(pred, target)
         history.append({"phase": 2, "iter": it, "mse": float(loss.item())})
 
@@ -1696,7 +1711,7 @@ def train(model: NeuralMaterialCompressionModel, ref_mips: List[torch.Tensor], c
         for it in (pbar3 if pbar3 is not None else phase3_iter):
             uv, lod = random_uv_lod(cfg.batch_size, max_lod, device)
             target = sample_mips_trilinear(ref_mips, uv, lod, bilinear_mode="bicubic")
-            pred = model.forward_bc(uv, lod)
+            pred = _fwd_bc(uv, lod)
             loss = F.mse_loss(pred, target)
             history.append({"phase": 3, "iter": it, "mse": float(loss.item())})
 

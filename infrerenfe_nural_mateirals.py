@@ -477,13 +477,11 @@ def main():
     ap.add_argument("--batch-size", type=int, default=4096)
     ap.add_argument("--phase1-iters", type=int, default=5000)
     ap.add_argument("--phase2-iters", type=int, default=200000)
-    ap.add_argument("--phase3-iters", type=int, default=0)
+    ap.add_argument("--phase3-iters", type=int, default=6000)
     ap.add_argument("--lr-feat-phase1", type=float, default=5e-2)
     ap.add_argument("--lr-mlp-phase1", type=float, default=1e-3)
-    ap.add_argument("--gamma-phase1", type=float, default=0.9995)
     ap.add_argument("--lr-feat-phase2", type=float, default=1e-2)
     ap.add_argument("--lr-mlp-phase2", type=float, default=1e-3)
-    ap.add_argument("--gamma-phase2", type=float, default=0.9999)
     ap.add_argument("--lr-mlp-phase3", type=float, default=5e-4)
     ap.add_argument("--log-every", type=int, default=200)
     ap.add_argument("--interactive-progress", action="store_true", help="Enable tqdm-like live progress bars during training.")
@@ -537,10 +535,8 @@ def main():
             phase3_iters=args.phase3_iters,
             lr_feat_phase1=args.lr_feat_phase1,
             lr_mlp_phase1=args.lr_mlp_phase1,
-            gamma_phase1=args.gamma_phase1,
             lr_feat_phase2=args.lr_feat_phase2,
             lr_mlp_phase2=args.lr_mlp_phase2,
-            gamma_phase2=args.gamma_phase2,
             lr_mlp_phase3=args.lr_mlp_phase3,
             log_every=args.log_every,
             interactive_progress=args.interactive_progress,
