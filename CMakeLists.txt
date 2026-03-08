@@ -7,110 +7,79 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Debug symbols for debugging with lldb
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
 
-# Homebrew paths
-set(HOMEBREW_PREFIX /opt/homebrew)
-
-# Find Vulkan
+# Find Vulkan (Relies on VULKAN_SDK environment variable or system paths)
 find_package(Vulkan REQUIRED)
-
-# Direct homebrew paths
-set(GLFW_INCLUDE_DIR ${HOMEBREW_PREFIX}/Cellar/glfw/3.4/include)
-set(GLFW_LIB ${HOMEBREW_PREFIX}/lib/libglfw.dylib)
-set(GLM_INCLUDE_DIR ${HOMEBREW_PREFIX}/Cellar/glm/1.0.1/include)
-
-# Shader compilation
 find_program(GLSLC glslc REQUIRED)
 
-# Compile shaders
+# ==============================================================================
+# Dependency Fetching (Cross-Platform)
+# ==============================================================================
+include(FetchContent)
+
+# Fetch GLFW automatically
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.4
+)
+# Disable unnecessary GLFW build options to speed up compile time
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(glfw)
+
+# Fetch GLM automatically (Header-only math library)
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        1.0.1
+)
+set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(glm)
+
+# ==============================================================================
+# Shader Compilation
+# ==============================================================================
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders)
 
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.vert.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/neural_material_decode.vert
-            -o ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.vert.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/neural_material_decode.vert
+set(SHADER_FILES
+    neural_material_decode.vert
+    neural_material_decode.frag
+    neural_material_decode_debug.frag
+    simple_quad.frag
+    test_quad.frag
+    solid_red.frag
+    simple_quad_debug.frag
+    white_test.frag
+    test_grid.frag
 )
 
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/neural_material_decode.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/neural_material_decode.frag
-)
+set(SPV_FILES "")
 
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/neural_material_decode_debug.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/neural_material_decode_debug.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/neural_material_decode_debug.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/neural_material_decode_debug.frag
-)
+foreach(SHADER ${SHADER_FILES})
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv
+        COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/${SHADER} -o ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv
+        DEPENDS ${CMAKE_SOURCE_DIR}/shaders/${SHADER}
+    )
+    list(APPEND SPV_FILES ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv)
+endforeach()
 
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/simple_quad.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/simple_quad.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/simple_quad.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/simple_quad.frag
-)
+add_custom_target(compile_shaders ALL DEPENDS ${SPV_FILES})
 
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/test_quad.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/test_quad.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/test_quad.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/test_quad.frag
-)
-
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/solid_red.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/solid_red.frag
-)
-
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/simple_quad_debug.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/simple_quad_debug.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/simple_quad_debug.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/simple_quad_debug.frag
-)
-
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/white_test.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/white_test.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/white_test.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/white_test.frag
-)
-
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/shaders/test_grid.frag.spv
-    COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/test_grid.frag
-            -o ${CMAKE_BINARY_DIR}/shaders/test_grid.frag.spv
-    DEPENDS ${CMAKE_SOURCE_DIR}/shaders/test_grid.frag
-)
-
-add_custom_target(compile_shaders ALL
-    DEPENDS
-        ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.vert.spv
-        ${CMAKE_BINARY_DIR}/shaders/neural_material_decode.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/neural_material_decode_debug.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/simple_quad.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/test_quad.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/solid_red.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/simple_quad_debug.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/white_test.frag.spv
-        ${CMAKE_BINARY_DIR}/shaders/test_grid.frag.spv
-)
-
-# Main executable
+# ==============================================================================
+# Main Executable
+# ==============================================================================
 add_executable(vk_neural_demo
     vk_neural_material_demo.cpp
 )
 
 add_dependencies(vk_neural_demo compile_shaders)
 
+# Include directories (Using the fetched target paths)
 target_include_directories(vk_neural_demo PRIVATE
     ${Vulkan_INCLUDE_DIRS}
-    ${GLFW_INCLUDE_DIR}
-    ${GLM_INCLUDE_DIR}
+    ${glm_SOURCE_DIR} 
 )
 
 # Pass CMAKE_BINARY_DIR to the source code for shader path resolution
@@ -118,7 +87,8 @@ target_compile_definitions(vk_neural_demo PRIVATE
     CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}"
 )
 
+# Link libraries (Vulkan and our fetched GLFW target)
 target_link_libraries(vk_neural_demo PRIVATE
     Vulkan::Vulkan
-    ${GLFW_LIB}
+    glfw
 )

@@ -532,7 +532,7 @@ void VulkanApp::createInstance() {
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
-    createInfo.enabledLayerCount = 1;
+    createInfo.enabledLayerCount = 0;
     createInfo.ppEnabledLayerNames = validationLayers;
     createInfo.pNext = &debugCreateInfo;
 
@@ -622,7 +622,9 @@ void VulkanApp::createLogicalDevice() {
     std::vector<const char*> deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+#ifdef __APPLE__
         "VK_KHR_portability_subset",  // Required on macOS
+#endif // __APPLE__
     };
 
     // Enable dynamic rendering feature
