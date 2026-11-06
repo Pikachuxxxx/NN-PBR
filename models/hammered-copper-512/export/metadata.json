@@ -1,0 +1,220 @@
+{
+  "version": 5,
+  "reference_resolution": 512,
+  "address_mode": "clamp_to_edge",
+  "channel_schema": "albedo_srgb01_normal_xy_signed_orm_signed_v1",
+  "latent_count": 4,
+  "latent_resolutions": [
+    128,
+    64,
+    32,
+    16
+  ],
+  "lod_biases": [
+    -2.0,
+    -3.0,
+    -4.0,
+    -5.0
+  ],
+  "bc6_signed_mode": false,
+  "bc6_format": "DXGI_FORMAT_BC6H_UF16",
+  "bc6_mode": 10,
+  "endpoint_bits": 6,
+  "index_bits": 3,
+  "decoder": {
+    "in_dim": 12,
+    "hidden_dim": 16,
+    "out_dim": 8,
+    "weights_fp16_blob": "decoder_fp16.bin",
+    "state_dict": "metadata/decoder_state.pt"
+  },
+  "latent_files": [
+    {
+      "latent_index": 0,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        128,
+        128
+      ],
+      "png": "metadata/latent_00_mip_00.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        64,
+        64
+      ],
+      "png": "metadata/latent_00_mip_01.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "png": "metadata/latent_00_mip_02.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "png": "metadata/latent_00_mip_03.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 4,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "png": "metadata/latent_00_mip_04.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 5,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_00_mip_05.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        64,
+        64
+      ],
+      "png": "metadata/latent_01_mip_00.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "png": "metadata/latent_01_mip_01.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "png": "metadata/latent_01_mip_02.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "png": "metadata/latent_01_mip_03.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 4,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_01_mip_04.png"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "png": "metadata/latent_02_mip_00.png"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "png": "metadata/latent_02_mip_01.png"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "png": "metadata/latent_02_mip_02.png"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_02_mip_03.png"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "png": "metadata/latent_03_mip_00.png"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "png": "metadata/latent_03_mip_01.png"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_03_mip_02.png"
+    }
+  ],
+  "sha256": {
+    "decoder_fp16.bin": "b5f787472e4c8f351050d2fbb40b038f733c6bdd9d08c56125fcb9f6d9eebcc9",
+    "latent_00.bc6.dds": "b6afdc3dbc4cbcc3ce1d526bcce2581380f85019aa15daee796784f6e7cd5175",
+    "latent_01.bc6.dds": "9c76c14dc3c69d56c345ac0ce3e2066ebb8631c5eecd7459f053203fe7368b34",
+    "latent_02.bc6.dds": "41d8ed559a24ff7e231bbbcbd2e541d8fd44341ab9d388a4464a5374dfc47821",
+    "latent_03.bc6.dds": "ce339e0005c65425597c64e7f3b884ef55fd4e7329e327f5fc927c44b6ca3386"
+  }
+}

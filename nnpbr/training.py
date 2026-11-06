@@ -146,6 +146,7 @@ def train(model, ref_mips, cfg: TrainConfig):
         begin = resume["completed"] if same_phase else 0
         if cfg.compile_model:
             forward = torch.compile(forward, fullgraph=False)
+        phase_start = time.perf_counter()
         for step in range(begin, iterations):
             opt.zero_grad(set_to_none=True)
             # One common continuous reference scale per effective batch (paper profile).
@@ -184,10 +185,17 @@ def train(model, ref_mips, cfg: TrainConfig):
                     "elapsed_seconds": time.perf_counter() - start,
                 }
                 history.append(entry)
-                print(
-                    f"[phase {phase} {step + 1}/{iterations}] mse={entry['mse']:.6g}",
-                    flush=True,
-                )
+                message = f"[phase {phase} {step + 1}/{iterations}] mse={entry['mse']:.6g}"
+                if cfg.interactive_progress:
+                    done = step + 1
+                    filled = 24 * done // iterations
+                    rate = (done - begin) / max(time.perf_counter() - phase_start, 1e-9)
+                    eta = round((iterations - done) / rate)
+                    bar = "#" * filled + "-" * (24 - filled)
+                    message = f"\r[{bar}] {done/iterations:6.1%} {message}  {rate:.1f} updates/s  ETA {eta//60}m {eta%60:02}s"
+                    print(message.ljust(110), end="\n" if done == iterations else "", flush=True)
+                else:
+                    print(message, flush=True)
             if cfg.checkpoint_path and (
                 (step + 1) % cfg.checkpoint_every == 0 or step + 1 == iterations
             ):

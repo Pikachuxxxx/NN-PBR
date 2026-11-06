@@ -487,6 +487,8 @@ def main():
     )
 
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--fused-adam", action="store_true", help="Request PyTorch fused Adam on GPU")
+    ap.add_argument("--compile-model", action="store_true", help="Compile each phase forward with torch.compile")
     ap.add_argument("--out-channels", type=int, default=8)
     ap.add_argument("--ref-mips", type=int, default=9)
     ap.add_argument("--latent-res", type=str, default="512,256,128,64")
@@ -589,6 +591,8 @@ def main():
             lr_mlp_phase3=args.lr_mlp_phase3,
             log_every=args.log_every,
             interactive_progress=args.interactive_progress,
+            fused_adam=args.fused_adam,
+            compile_model=args.compile_model,
         )
         print(f"[train] mode={mode} device={device_str} resolution={w}x{h}")
         from dataclasses import asdict

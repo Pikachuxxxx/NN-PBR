@@ -18,6 +18,20 @@ The 2K red plaid finished all 206,000 updates on the RX 9070. Here's the actual 
 python -m nnpbr view models/red-plaid-2k --hlsl
 ```
 
+### Hammered copper · short GPU run
+
+This 512×512 bake took 2 minutes 22 seconds of training on the RX 9070 with fused Adam. We used 500 warmup updates, 5,000 BC6 updates and 200 decoder-tuning updates. The broad hammered pattern comes through, while the smallest pits look softer in the export.
+
+![Hammered copper source maps, exported reconstruction, absolute errors and latent previews](docs/figures/hammered-copper/all_analysis.png)
+
+![Hammered copper training loss and runtime storage comparison](docs/figures/hammered-copper/training_loss.png)
+
+[Zoom in on the loss curve](docs/figures/hammered-copper/training_loss.svg) or open the committed model in Vulkan:
+
+```sh
+python -m nnpbr view models/hammered-copper-512 --hlsl
+```
+
 ### Original run
 
 Here's the plaid from the original RX 9070 run. Look at the bright spots in the neural output next to the reference.

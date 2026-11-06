@@ -1,0 +1,46 @@
+{
+  "config": {
+    "device": "cuda:0",
+    "batch_size": 16384,
+    "microbatch_size": 16384,
+    "phase1_iters": 500,
+    "phase2_iters": 5000,
+    "phase3_iters": 200,
+    "lr_feat_phase1": 0.05,
+    "lr_mlp_phase1": 0.001,
+    "gamma_phase1": 0.9995,
+    "lr_feat_phase2": 0.01,
+    "lr_mlp_phase2": 0.001,
+    "gamma_phase2": 0.9999,
+    "lr_mlp_phase3": 0.0005,
+    "seed": 7,
+    "shared_scale": true,
+    "compile_model": false,
+    "fused_adam": true,
+    "log_every": 25,
+    "checkpoint_every": 1000,
+    "checkpoint_path": "runs\\copper-short\\checkpoint.pt",
+    "resume": null,
+    "interactive_progress": true
+  },
+  "reference_sha256": "3a0dc62b4b7860de1e4baff9c960a9840159530189d082fe6ea2aba778db3520",
+  "torch": "2.14.0+rocm10.1.0",
+  "python": "3.12.14",
+  "model": {
+    "resolutions": [
+      128,
+      64,
+      32,
+      16
+    ],
+    "mips": [
+      6,
+      5,
+      4,
+      3
+    ],
+    "reference_resolution": 512
+  },
+  "revision": "683fa9325f3873454e0ba40a12cd3eb8cd7b81a3",
+  "working_tree_dirty": true
+}
