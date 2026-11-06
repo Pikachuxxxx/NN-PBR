@@ -65,6 +65,12 @@ Both training modes save an SVG loss plot to `analysis/training_loss.svg`. Updat
 python -m nnpbr.plot runs/red-plaid-bl/train
 ```
 
+To regenerate the README figures after a completed full bake, run the command below from the repo root. It reads the reference, decodes the exported DDS and FP16 weights again, and plots albedo, normals, packed AO/roughness/metallic, absolute errors, training loss and storage.
+
+```sh
+python -m nnpbr.figures runs/red-plaid-bl/train --out docs/figures/red-plaid
+```
+
 ## What ships
 
 Inside the run's `export/` folder you'll find four `latent_XX.bc6.dds` mip pyramids, `decoder_fp16.bin` (688 bytes) and `metadata.json` (v5). Training writes the final DDS files directly. The viewer needs only this folder. Regenerate older v4 exports with the corrected pipeline. For physical shading, convert reconstructed albedo from sRGB to linear light first.

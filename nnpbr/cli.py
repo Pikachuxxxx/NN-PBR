@@ -79,7 +79,7 @@ def _collect_neural_storage_bytes(export_dir: Path) -> Dict[str, int]:
         if dds_files:
             latent_bc6h_bytes = sum(f.stat().st_size for f in dds_files)
         else:
-            # Theoretical: 16 bytes per 4Ã—4 BC6H block per mip entry
+            # Theoretical: 16 bytes per 4x4 BC6H block per mip entry
             latent_bc6h_bytes = sum(
                 ((e["shape_chw"][2] + 3) // 4) * ((e["shape_chw"][1] + 3) // 4) * 16
                 for e in meta.get("latent_files", [])
@@ -289,7 +289,7 @@ def _save_inference_maps(pred: torch.Tensor, out_dir: Path) -> Dict[str, str]:
     _save_rgb01(orm, orm_p)
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 5))
-    fig.suptitle("Neural Material â€” Decoded PBR Maps", fontsize=12)
+    fig.suptitle("Neural Material — Decoded PBR Maps", fontsize=12)
     for ax, img, title in zip(axes, [albedo, normal, orm], ["Albedo", "Normal", "ORM"]):
         ax.imshow(img)
         ax.set_title(title)
@@ -385,7 +385,7 @@ def _save_full_plots(
 
     # --- Master demo: GT | Neural | Diff (neural channels) ---
     fig, axes = plt.subplots(3, 4, figsize=(20, 12))
-    fig.suptitle("Neural Material â€” Full Analysis", fontsize=14, fontweight="bold")
+    fig.suptitle("Neural Material — Full Analysis", fontsize=14, fontweight="bold")
 
     def _show(ax, img, title, cmap=None, vmin=None, vmax=None):
         ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)

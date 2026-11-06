@@ -31,8 +31,8 @@ def draw_loss(ax, history):
         ax.legend()
 
 
-def save_loss(run, history):
-    path = run / "analysis/training_loss.svg"
+def save_loss(run, history, output=None):
+    path = (output or run / "analysis") / "training_loss.svg"
     path.parent.mkdir(parents=True, exist_ok=True)
     fig = Figure(figsize=(11, 4.5), layout="constrained")
     ax = fig.subplots()
