@@ -6,6 +6,10 @@ This "bakes" one material into four small BC6H textures and a tiny decoder. In t
 
 ## Demo
 
+![2K red plaid rendered in the Vulkan demo](docs/figures/red-plaid/vulkan.png)
+
+The Vulkan demo shows AO and packed AO/roughness/metallic across the top, with albedo and tangent-space normals below. [Browse the 2K plaid model and weights](models/red-plaid-2k).
+
 The 2K red plaid finished all 206,000 updates on the RX 9070. Here's the actual export next to the source. The checks in the albedo line up. The fine normal detail is still weak. At full resolution the albedo MSE was 0.000249 and the normal XY MSE was 0.194 (signed components).
 
 ![Source, decoded DDS and FP16 reconstruction, absolute error and latent previews](docs/figures/red-plaid/all_analysis.png)
@@ -20,6 +24,10 @@ python -m nnpbr view models/red-plaid-2k --hlsl
 
 ### Hammered copper · short GPU run
 
+![Hammered copper rendered in the Vulkan demo](docs/figures/hammered-copper/vulkan.png)
+
+[Browse the copper model, decoder weights and BC6H textures](models/hammered-copper-512).
+
 This 512×512 bake took 2 minutes 22 seconds of training on the RX 9070 with fused Adam. We used 500 warmup updates, 5,000 BC6 updates and 200 decoder-tuning updates. The broad hammered pattern comes through, while the smallest pits look softer in the export.
 
 ![Hammered copper source maps, exported reconstruction, absolute errors and latent previews](docs/figures/hammered-copper/all_analysis.png)
@@ -32,17 +40,7 @@ This 512×512 bake took 2 minutes 22 seconds of training on the RX 9070 with fus
 python -m nnpbr view models/hammered-copper-512 --hlsl
 ```
 
-### Original run
-
-Here's the plaid from the original RX 9070 run. Look at the bright spots in the neural output next to the reference.
-
-![Original plaid reference, neural reconstruction and difference](docs/figures/original_plaid.png)
-
-**What we got wrong.** Each 4×4 block has two groups of texels. The old trainer gave each group the other group's values. The GPU read the groups in the correct order, so the shader saw different inputs from the ones we'd trained the decoder on. Another 200k updates could still fit the wrong inputs. We could reproduce the swap in code. The weights for this screenshot are gone, so we can't trace each bright spot back to it.
-
-[Read the illustrated tutorial](docs/tutorial.html) for a worked BC6 block, the old line of code, the fix and the comparisons. With the fixes together, error on the exported maps fell by 75.5–83.7% across four matched small runs.
-
-![Corrected small-run plaid compared with the source maps](docs/figures/07_larger_smoke.svg)
+[Read the illustrated training and BC6H tutorial](docs/tutorial.html).
 
 ## Usage
 
