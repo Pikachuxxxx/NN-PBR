@@ -1,0 +1,46 @@
+{
+  "config": {
+    "device": "cuda:0",
+    "batch_size": 262144,
+    "microbatch_size": 262144,
+    "phase1_iters": 5000,
+    "phase2_iters": 200000,
+    "phase3_iters": 1000,
+    "lr_feat_phase1": 0.05,
+    "lr_mlp_phase1": 0.001,
+    "gamma_phase1": 0.9995,
+    "lr_feat_phase2": 0.01,
+    "lr_mlp_phase2": 0.001,
+    "gamma_phase2": 0.9999,
+    "lr_mlp_phase3": 0.0005,
+    "seed": 7,
+    "shared_scale": true,
+    "compile_model": false,
+    "fused_adam": false,
+    "log_every": 100,
+    "checkpoint_every": 1000,
+    "checkpoint_path": "runs\\full_plaid\\training\\checkpoint.pt",
+    "resume": null,
+    "interactive_progress": false
+  },
+  "reference_sha256": "d44447192c39e42ea963a42f5bcef6d187f91a79765cb0903358f54f3de8aee0",
+  "torch": "2.14.0+rocm10.1.0",
+  "python": "3.12.14",
+  "model": {
+    "resolutions": [
+      512,
+      256,
+      128,
+      64
+    ],
+    "mips": [
+      8,
+      7,
+      6,
+      5
+    ],
+    "reference_resolution": 2048
+  },
+  "revision": "dfa7e71aecddd01f319c4e371d538c0a14e1f967",
+  "working_tree_dirty": true
+}
