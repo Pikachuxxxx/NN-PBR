@@ -59,6 +59,12 @@ python tools/material.py check runs/red-plaid-bl/train
 python tools/material.py view runs/red-plaid-bl/train
 ```
 
+Both training modes save an SVG loss plot to `analysis/training_loss.svg`. Updates run continuously across all three phases. Each dot is the loss on one logged training batch. To plot an existing run or take a snapshot while it writes `train.log`:
+
+```sh
+python -m nnpbr.plot runs/red-plaid-bl/train
+```
+
 ## What ships
 
 Inside the run's `export/` folder you'll find four `latent_XX.bc6.dds` mip pyramids, `decoder_fp16.bin` (688 bytes) and `metadata.json` (v5). Training writes the final DDS files directly. The viewer needs only this folder. Regenerate older v4 exports with the corrected pipeline. For physical shading, convert reconstructed albedo from sRGB to linear light first.

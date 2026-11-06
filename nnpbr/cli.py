@@ -21,6 +21,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
+from .plot import draw_loss, save_loss
 from .api import (
     NeuralMaterialCompressionModel,
     TrainConfig,
@@ -78,7 +79,7 @@ def _collect_neural_storage_bytes(export_dir: Path) -> Dict[str, int]:
         if dds_files:
             latent_bc6h_bytes = sum(f.stat().st_size for f in dds_files)
         else:
-            # Theoretical: 16 bytes per 4×4 BC6H block per mip entry
+            # Theoretical: 16 bytes per 4Ã—4 BC6H block per mip entry
             latent_bc6h_bytes = sum(
                 ((e["shape_chw"][2] + 3) // 4) * ((e["shape_chw"][1] + 3) // 4) * 16
                 for e in meta.get("latent_files", [])
@@ -288,7 +289,7 @@ def _save_inference_maps(pred: torch.Tensor, out_dir: Path) -> Dict[str, str]:
     _save_rgb01(orm, orm_p)
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 5))
-    fig.suptitle("Neural Material — Decoded PBR Maps", fontsize=12)
+    fig.suptitle("Neural Material â€” Decoded PBR Maps", fontsize=12)
     for ax, img, title in zip(axes, [albedo, normal, orm], ["Albedo", "Normal", "ORM"]):
         ax.imshow(img)
         ax.set_title(title)
@@ -384,7 +385,7 @@ def _save_full_plots(
 
     # --- Master demo: GT | Neural | Diff (neural channels) ---
     fig, axes = plt.subplots(3, 4, figsize=(20, 12))
-    fig.suptitle("Neural Material — Full Analysis", fontsize=14, fontweight="bold")
+    fig.suptitle("Neural Material â€” Full Analysis", fontsize=14, fontweight="bold")
 
     def _show(ax, img, title, cmap=None, vmin=None, vmax=None):
         ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
@@ -436,26 +437,9 @@ def _save_full_plots(
     plt.close(fig)
 
     # --- Training loss curve ---
-    p1_x = [h["iter"] for h in loss_history if h["phase"] == 1]
-    p1_y = [h["mse"] for h in loss_history if h["phase"] == 1]
-    p2_x = [h["iter"] for h in loss_history if h["phase"] == 2]
-    p2_y = [h["mse"] for h in loss_history if h["phase"] == 2]
-    p3_x = [h["iter"] for h in loss_history if h["phase"] == 3]
-    p3_y = [h["mse"] for h in loss_history if h["phase"] == 3]
-
     fig, (ax_loss, ax_bar) = plt.subplots(1, 2, figsize=(14, 4))
-    if p1_x:
-        ax_loss.plot(p1_x, p1_y, label="phase1 (warmup)", color="#4e9af1")
-    if p2_x:
-        ax_loss.plot(p2_x, p2_y, label="phase2 (BC)", color="#f4a430")
-    if p3_x:
-        ax_loss.plot(p3_x, p3_y, label="phase3 (finetune)", color="#62c462")
-    ax_loss.set_xlabel("iteration")
-    ax_loss.set_ylabel("MSE")
-    ax_loss.set_yscale("log")
-    ax_loss.set_title("Training Loss")
-    ax_loss.grid(True, alpha=0.2)
-    ax_loss.legend()
+    draw_loss(ax_loss, loss_history)
+    ax_loss.set_title("Training loss")
 
     names = ["PBR BCn\n(baseline)", "Neural\nruntime"]
     vals_mb = [baseline_bytes / (1024.0 * 1024.0), neural_bytes / (1024.0 * 1024.0)]
@@ -636,6 +620,8 @@ def main():
         (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
         history = train(model, ref_mips, cfg)
         (output_dir / "training_history.json").write_text(json.dumps(history, indent=2))
+
+        print(f"[plot] {save_loss(output_dir, history)}")
 
         print("[export] writing neural artifacts")
         export_trained_artifacts(model=model, out_dir=export_dir)
