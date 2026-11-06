@@ -1,0 +1,32 @@
+{
+  "device": "cuda:0",
+  "gpu": "AMD Radeon RX 9070",
+  "hip": "7.16.26385",
+  "torch": "2.14.0+rocm10.1.0",
+  "timings": [
+    {
+      "phase": "forward_warmup",
+      "microbatch": 8192,
+      "seconds": 0.010081599990371615,
+      "peak_gb": 0.273639936
+    },
+    {
+      "phase": "forward_warmup",
+      "microbatch": 262144,
+      "seconds": 0.03403389995219186,
+      "peak_gb": 0.395712512
+    },
+    {
+      "phase": "forward_bc",
+      "microbatch": 8192,
+      "seconds": 0.03319000004557893,
+      "peak_gb": 0.313312256
+    },
+    {
+      "phase": "forward_bc",
+      "microbatch": 262144,
+      "seconds": 0.060165900038555264,
+      "peak_gb": 0.427757568
+    }
+  ]
+}

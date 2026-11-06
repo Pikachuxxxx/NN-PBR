@@ -4,8 +4,7 @@ project(NN-PBR-Vulkan)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Debug symbols for debugging with lldb
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+
 
 # Find Vulkan (Relies on VULKAN_SDK environment variable or system paths)
 find_package(Vulkan REQUIRED)
@@ -46,12 +45,6 @@ set(SHADER_FILES
     neural_material_decode.vert
     neural_material_decode.frag
     neural_material_decode_debug.frag
-    simple_quad.frag
-    test_quad.frag
-    solid_red.frag
-    simple_quad_debug.frag
-    white_test.frag
-    test_grid.frag
 )
 
 set(SPV_FILES "")
@@ -60,7 +53,7 @@ foreach(SHADER ${SHADER_FILES})
     add_custom_command(
         OUTPUT ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv
         COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/${SHADER} -o ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv
-        DEPENDS ${CMAKE_SOURCE_DIR}/shaders/${SHADER}
+        DEPENDS ${CMAKE_SOURCE_DIR}/shaders/${SHADER} ${CMAKE_SOURCE_DIR}/shaders/material_decoder.glsl
     )
     list(APPEND SPV_FILES ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv)
 endforeach()
@@ -92,3 +85,8 @@ target_link_libraries(vk_neural_demo PRIVATE
     Vulkan::Vulkan
     glfw
 )
+
+option(NNPBR_BUILD_CODEC_TESTS "Build the independent BC6 decoder test oracle" OFF)
+if(NNPBR_BUILD_CODEC_TESTS)
+    add_library(bcdec_oracle SHARED tests/oracle/bcdec_wrapper.c)
+endif()

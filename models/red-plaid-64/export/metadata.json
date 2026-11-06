@@ -1,0 +1,140 @@
+{
+  "version": 5,
+  "reference_resolution": 64,
+  "address_mode": "clamp_to_edge",
+  "channel_schema": "albedo_srgb01_normal_xy_signed_orm_signed_v1",
+  "latent_count": 4,
+  "latent_resolutions": [
+    32,
+    16,
+    8,
+    4
+  ],
+  "lod_biases": [
+    -1.0,
+    -2.0,
+    -3.0,
+    -4.0
+  ],
+  "bc6_signed_mode": false,
+  "bc6_format": "DXGI_FORMAT_BC6H_UF16",
+  "bc6_mode": 10,
+  "endpoint_bits": 6,
+  "index_bits": 3,
+  "decoder": {
+    "in_dim": 12,
+    "hidden_dim": 16,
+    "out_dim": 8,
+    "weights_fp16_blob": "decoder_fp16.bin",
+    "state_dict": "metadata/decoder_state.pt"
+  },
+  "latent_files": [
+    {
+      "latent_index": 0,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        32,
+        32
+      ],
+      "png": "metadata/latent_00_mip_00.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "png": "metadata/latent_00_mip_01.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "png": "metadata/latent_00_mip_02.png"
+    },
+    {
+      "latent_index": 0,
+      "mip_index": 3,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_00_mip_03.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        16,
+        16
+      ],
+      "png": "metadata/latent_01_mip_00.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "png": "metadata/latent_01_mip_01.png"
+    },
+    {
+      "latent_index": 1,
+      "mip_index": 2,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_01_mip_02.png"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        8,
+        8
+      ],
+      "png": "metadata/latent_02_mip_00.png"
+    },
+    {
+      "latent_index": 2,
+      "mip_index": 1,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_02_mip_01.png"
+    },
+    {
+      "latent_index": 3,
+      "mip_index": 0,
+      "shape_chw": [
+        3,
+        4,
+        4
+      ],
+      "png": "metadata/latent_03_mip_00.png"
+    }
+  ],
+  "sha256": {
+    "decoder_fp16.bin": "b084a57b5547f91eb27ab15d81d9a67660eb0d2e676f8f3a08130c77d0220026",
+    "latent_00.bc6.dds": "41a5be2d34051f447ef4da2b739e1944e0546b781916f551f85228e11caa4326",
+    "latent_01.bc6.dds": "038771194c586e7e55471d93422d39589dab83b0a5f9a16a2cb23336696e1d2a",
+    "latent_02.bc6.dds": "e05d1775dc52e0212aea922b687c4bc823b23aa5bfe0dc8194041f77282dd8f7",
+    "latent_03.bc6.dds": "1ff0b4e6694ac57394b4862b47b502bf1b33e774c2de3937855d7bf4040b182e"
+  }
+}

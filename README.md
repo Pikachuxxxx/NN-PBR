@@ -1,236 +1,88 @@
 # Real-Time Neural Materials using Block-Compressed Features
 
-This project implements the paper: Real-Time Neural Materials using Block-Compressed Features
-https://arxiv.org/pdf/2311.16121
+> WIP implementation of [Real-Time Neural Materials using Block-Compressed Features](https://arxiv.org/abs/2311.16121).
 
-> WIP implementation.
-
-It "bakes" a single material into:
-- a few latent texture pyramids (BC6-filterable at runtime), and
-- a tiny MLP decoder (`decoder_fp16.bin`) evaluated in a shader to reconstruct 8 PBR channels.
-
-Output channels: `[albedo_r, albedo_g, albedo_b, normal_x, normal_y, ao, roughness, metallic]`
-
----
+This "bakes" one material into four small BC6H textures and a tiny decoder. In the Vulkan shader we sample all four textures, feed the 12 numbers into the decoder, and get back albedo RGB, normal XY, ambient occlusion, roughness and metallic.
 
 ## Demo
 
-Phase1: 5k | Phase2: 200k iterations on AMD RX9070 GPU
+Here's the plaid from the original RX 9070 run. Look at the bright spots in the neural output next to the reference.
 
-Full analysis dashboard (GT | Neural | Diff | Latent preview):
+![Original plaid reference, neural reconstruction and difference](demo/all_analysis.png)
 
-![Full Analysis](demo/all_analysis.png)
+**What we got wrong.** Each 4Ãƒâ€”4 block has two groups of texels. The old trainer gave each group the other group's values. The GPU read the groups in the correct order, so the shader saw different inputs from the ones we'd trained the decoder on. Another 200k updates could still fit the wrong inputs. We could reproduce the swap in code. The weights for this screenshot are gone, so we can't trace each bright spot back to it.
 
-Training loss + storage comparison:
+[Read the illustrated tutorial](docs/tutorial.html) for a worked BC6 block, the old line of code, the fix and the comparisons. With the fixes together, error on the exported maps fell by 75.5Ã¢â‚¬â€œ83.7% across four matched small runs.
 
-![Training Loss](demo/training_loss.png)
-
-Still facing some issues with full 5k phase 1 and 200k training on a RX9070 GPU afte full training, looks like need to check singned/unsigned BC6H modes
-
-Vulkan app demo with neural shader predicting pixels
-![Vulkan demo](demo/vk_neural_demo.png)
-
----
-
-## Pipeline Summary
-
-1. Prepare a material dataset from FreePBR → `reference_8ch.pt`
-2. Train neural latents + decoder (warmup → BC-constrained phases)
-3. Export artifacts (flat in `<run>/export/`):
-   - `decoder_fp16.bin` — quantized MLP weights (FP16)
-   - `decoder_state.pt` — full-precision decoder state
-   - `latent_XX_mip_YY.pt` — float latent mip tensors
-   - `latent_XX_mip_YY.png` — LDR debug previews (mapped from `[-1,1]` to `[0,255]`)
-   - `metadata.json` — model dims, latent inventory, lod biases
-4. Export BC6 DDS textures (`export_true_bc6_dds.py`) — the active cleanup target is spec-correct BC6H Mode 10 packing:
-   - builds one mip-chained DDS per latent (`latent_XX.bc6.dds`)
-   - see `BC6_MODE10_TODO.md` for the paper-aligned export checklist
-5. Runtime shader samples BC6 latent textures + runs FP16 MLP decode
-
----
-
-## Setup
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install torch numpy pillow matplotlib
-```
-
----
+![Corrected small-run plaid compared with the source maps](docs/figures/07_larger_smoke.svg)
 
 ## Usage
 
-### 1) Prepare Dataset
+Run these commands from the repo root. Use Python 3.12 in a virtual environment. Install PyTorch for your hardware first, then the project dependencies. For the RX 9070 on Windows, use [AMD's PyTorch install guide](https://rocm.docs.amd.com/en/latest/install/rocm.html?fam=radeon&gfx=gfx1201&gpu=rx-9070&i=pip&os=windows&w=graphics&windows-ver=11).
 
-```bash
-source .venv/bin/activate
-python prepare_freepbr_material.py \
-  --product-url https://freepbr.com/product/scratched-up-steel/ \
-  --variant-keyword "-bl.zip" \
-  --size 1024 \
-  --out-root data/freepbr/materials
+```sh
+python -m pip install -r requirements.txt
 ```
 
-Outputs:
-- `data/freepbr/materials/<material>/reference_8ch.pt`
-- `data/freepbr/materials/<material>/dataset_report.json`
-- `data/freepbr/materials/<material>/maps/`
+### 1. Try the small bake
 
-### 2) Full Run (train + plots + inference)
-
-Quick smoke check (120 iters):
-```bash
-source .venv/bin/activate
-python infrerenfe_nural_mateirals.py \
-  --mode full \
-  --reference-pt data/freepbr/materials/scratched-up-steel-bl/reference_8ch.pt \
-  --output-dir runs/full_demo \
-  --device auto \
-  --phase1-iters 20 \
-  --phase2-iters 100 \
-  --phase3-iters 0 \
-  --batch-size 2048 \
-  --log-every 10 \
-  --interactive-progress \
-  --analysis-batch-size 65536
+```sh
+python tools/material.py smoke
 ```
 
-Full training run:
-```bash
-source .venv/bin/activate
-python infrerenfe_nural_mateirals.py \
-  --mode train \
-  --reference-pt data/freepbr/materials/scratched-up-steel-bl/reference_8ch.pt \
-  --output-dir runs/train_long \
-  --device auto \
-  --phase1-iters 5000 \
-  --phase2-iters 200000 \
-  --batch-size 4096 \
-  --log-every 200
+This takes the bundled red plaid maps, builds a 64Ãƒâ€”64 reference, trains on CPU (150 / 400 / 100 updates), writes the runtime files and scores them against the reference at each mip. Open `runs/red-plaid-bl/smoke/mip_metrics.json` for the numbers. To try another material, append `scratched-up-steel-bl` or `worn-rusted-painted-bl`. To repeat a bake, give it a fresh directory with `--out runs/plaid-second-try`.
+
+### 2. Open it in Vulkan
+
+Install the Vulkan SDK with glslc, CMake and a C++17 compiler. Build the viewer once, then point it at the run you want to inspect.
+
+```sh
+cmake -S . -B build
+cmake --build build --config Release
+python tools/material.py view runs/red-plaid-bl/smoke
 ```
 
-Full-mode outputs (in `runs/<name>/`):
-- `inference/pbr_preview.png` — albedo / normal / ORM panel
-- `analysis/all_analysis.png` — GT | Neural | Diff | Latent preview (3×4 grid)
-- `analysis/training_loss.png` — loss curves + storage bar
-- `analysis/quality_metrics.json`
-- `export/` — flat latent `.pt`, `.png`, `decoder_fp16.bin`, `metadata.json`
+The app shows the reconstructed material maps. Escape closes it. For an existing viewer build, add `--viewer PATH_TO_EXECUTABLE`.
 
-### 3) Train Only
+### 3. Bake a full material
 
-```bash
-source .venv/bin/activate
-python infrerenfe_nural_mateirals.py \
-  --mode train \
-  --reference-pt data/freepbr/materials/scratched-up-steel-bl/reference_8ch.pt \
-  --output-dir runs/train_long \
-  --device auto \
-  --phase1-iters 5000 \
-  --phase2-iters 200000 \
-  --batch-size 4096 \
-  --log-every 200
+```sh
+python tools/material.py train red-plaid-bl
 ```
 
-### 4) Infer from Exported Artifacts
+This starts a new GPU job for a 2048Ãƒâ€”2048 reference. Warmup trains free features and the decoder for 5k updates. The next 200k train endpoints, indices and decoder with the block partitions fixed. The final 1k freeze the decoded features and tune only the decoder. The preset uses 262,144 samples per update in one GPU batch. For less GPU memory or to resume a checkpoint, use the trainer directly with the matching settings (`python -m nnpbr --help`).
 
-```bash
-source .venv/bin/activate
-python infrerenfe_nural_mateirals.py \
-  --mode infer \
-  --export-dir runs/train_long/export \
-  --output-dir runs/infer_only \
-  --device auto
+The full bake writes to `runs/red-plaid-bl/train`. Both presets score the export automatically. To check it again or open it later:
+
+```sh
+python tools/material.py check runs/red-plaid-bl/train
+python tools/material.py view runs/red-plaid-bl/train
 ```
 
-### 5) Export BC6 DDS (Mode 10 cleanup in progress)
+## What ships
 
-```bash
-source .venv/bin/activate
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export
+Inside the run's `export/` folder you'll find four `latent_XX.bc6.dds` mip pyramids, `decoder_fp16.bin` (688 bytes) and `metadata.json` (v5). Training writes the final DDS files directly. The viewer needs only this folder. Regenerate older v4 exports with the corrected pipeline. For physical shading, convert reconstructed albedo from sRGB to linear light first.
+
+## Embedded HLSL
+
+Want to try it without training? Build the viewer as above and open the bundled 64Ã—64 plaid bake:
+
+```sh
+python tools/material.py view models/red-plaid-64 --hlsl
 ```
 
-With explicit output dir:
-```bash
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export \
-  --out-dir runs/train_long/export/true_bc6_dds
+Each new bake writes `export/material.hlsl` with all 344 decoder constants. To generate it from an existing v5 export, run `python -m nnpbr.hlsl PATH_TO_EXPORT`. Add `--spirv` to compile the fragment shader for Vulkan. The viewer shortcut does both steps for you using glslc from the Vulkan SDK.
+
+In your engine, include the generated HLSL in a pixel shader. Bind the four unsigned BC6H DDS textures to t1 through t4 in file order and a trilinear clamp sampler to s0. Call `DecodeNeuralMaterial(uv)` for the material channels. The generated file includes an example and a version that accepts explicit UV derivatives. In our Vulkan sample, `--embedded-hlsl` selects the compiled shader and skips the weight and LOD buffer uploads.
+
+![GLSL and embedded HLSL rendered by the Vulkan sample](docs/figures/08_embedded_hlsl.svg)
+
+## Checking the codec
+
+```sh
+python -m unittest discover -s tests -v
+cmake -S . -B build -DNNPBR_BUILD_CODEC_TESTS=ON
+cmake --build build --config Release
 ```
 
-Skip verification diffing (faster):
-```bash
-python export_true_bc6_dds.py \
-  --export-dir runs/train_long/export \
-  --no-verify
-```
-
-Outputs (in `<export-dir>/true_bc6_dds/`):
-- `latent_XX.bc6.dds` — BC6H DDS with full mip chain (DXGI_FORMAT_BC6H_UF16)
-- `true_bc6_export_report.json` — per-mip PSNR metrics
-- `latent_XX_mip_YY.diff.png` — diff figures (unless `--no-verify`)
-
-Implementation note: the canonical target is paper-aligned BC6H Mode 10 export with 6-bit endpoints, 3-bit indices, and FP16 decoder weights. Track the remaining cleanup in `BC6_MODE10_TODO.md`.
-
-Typical quality: mip0 PSNR 39–45 dB on real latent textures; >60 dB on small mips.
-
-### 6) Vulkan application demo
-```
-mkdir build && cd build
-cmake ..
-make -j4
-
-./vk_neural_demo --export-dir ~/Desktop/Projects/NN-PBR/runs/full_demo/export
-```
-
----
-
-## Artifact Formats
-
-| File | Description |
-|------|-------------|
-| `metadata.json` | Model dims, latent inventory, lod biases (version 2 = flat export layout) |
-| `decoder_fp16.bin` | FP16 decoder weights for shader use |
-| `decoder_state.pt` | Full-precision PyTorch decoder state dict |
-| `latent_XX_mip_YY.pt` | Float latent mip tensor — canonical source for BC6 export |
-| `latent_XX_mip_YY.png` | LDR debug preview (mapped from `[-1,1]` to `[0,255]`) |
-| `latent_XX.bc6.dds` | BC6H DDS runtime artifact (Mode 10 cleanup target) |
-
----
-
-## Runtime
-
-From `export/`:
-- `metadata.json`
-- `decoder_fp16.bin`
-- `latent_XX.bc6.dds` (runtime BC6 DDS per latent)
-
-Shader: `shaders/neural_material_decode.hlsl`
-
-Runtime reconstructs: albedo · normalTS · ao · roughness · metallic
-
----
-
-## Quick Start
-
-For full usage guide (with all CLI flags and examples), use the skill:
-```bash
-/nnpbr-usage
-```
-
----
-
-## Storage Comparison Note
-
-`infrerenfe_nural_mateirals.py` compares:
-- **Baseline BCn**: analytical runtime memory (`BC1 albedo + BC5 normal + BC1 ORM`, full mip chain)
-- **Neural runtime**: `latent_XX_mip_YY.pt` tensors + `decoder_fp16.bin`
-
-Comparisons reflect runtime memory, not source PNG file sizes.
-
----
-
-## License
-
-MIT.
+Set `BCDEC_ORACLE` to the absolute path of the built `bcdec_oracle` library and rerun the tests to include the independent decoder comparison. The [tutorial's implementation review](docs/tutorial.html#fixes) covers the RX 9070 hardware readback and the training-to-export checks.

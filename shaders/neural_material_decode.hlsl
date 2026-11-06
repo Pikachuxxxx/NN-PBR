@@ -1,123 +1,74 @@
-// Drop-in neural material decode shader.
-// - Samples BC-compressed latent textures with hardware filtering.
-// - Runs exported MLP weights from decoder_fp16.bin (12 -> 16 -> 8 by default).
-// - Outputs standard PBR parameters.
+// Generated material usage (pixel shader):
+// Bind latent_00.bc6.dds through latent_03.bc6.dds, in order, to t1..t4.
+// Keep all mip levels, use unsigned BC6H and a clamp-to-edge trilinear sampler at s0.
+// Include the generated material.hlsl, then call:
+//   NeuralPBR p = DecodeNeuralMaterial(input.uv);
+// For tiled/remapped UVs, take derivatives before frac() and pass them to
+// DecodeNeuralMaterialWithGrad. Texture dimensions already account for mip bias.
+// Define NNPBR_VIEWER to compile the Vulkan sample's four-panel fragment entry point.
 
-#ifndef N_LATENT
-#define N_LATENT 4
-#endif
-
-#ifndef LATENT_CHANNELS_PER_TEX
-#define LATENT_CHANNELS_PER_TEX 3
-#endif
-
-#ifndef IN_DIM
-#define IN_DIM (N_LATENT * LATENT_CHANNELS_PER_TEX)
-#endif
-
-#ifndef HIDDEN_DIM
-#define HIDDEN_DIM 16
-#endif
-
-#ifndef OUT_DIM
-#define OUT_DIM 8
-#endif
-
-struct NeuralPBR
-{
-    float3 albedo;     // [0,1]
-    float3 normalTS;   // tangent-space normal
-    float  ao;         // [0,1]
-    float  roughness;  // [0,1]
-    float  metallic;   // [0,1]
+#ifndef NNPBR_MATERIAL_INCLUDED
+#define NNPBR_MATERIAL_INCLUDED
+struct NeuralPBR {
+    float3 albedo;
+    float3 normalTS;
+    float ao, roughness, metallic;
 };
 
-// Layout follows exported decoder_fp16.bin:
-// [fc1.weight (HIDDEN_DIM * IN_DIM)]
-// [fc1.bias   (HIDDEN_DIM)]
-// [fc2.weight (OUT_DIM * HIDDEN_DIM)]
-// [fc2.bias   (OUT_DIM)]
-ByteAddressBuffer gDecoderWeightsFP16 : register(t0);
+Texture2D<float4> latent0 : register(t1);
+Texture2D<float4> latent1 : register(t2);
+Texture2D<float4> latent2 : register(t3);
+Texture2D<float4> latent3 : register(t4);
+SamplerState linearClamp : register(s0);
 
-Texture2D<float3> gLatentTex0 : register(t1);
-Texture2D<float3> gLatentTex1 : register(t2);
-Texture2D<float3> gLatentTex2 : register(t3);
-Texture2D<float3> gLatentTex3 : register(t4);
-
-SamplerState gLinearWrapSampler : register(s0);
-
-cbuffer NeuralMaterialCB : register(b0)
-{
-    // From training export metadata "lod_biases"
-    float gLodBias0;
-    float gLodBias1;
-    float gLodBias2;
-    float gLodBias3;
+// The exporter inserts exact FP16 values promoted to float, in PyTorch row order.
+static const float weights[344] = {
+    /* NNPBR_WEIGHTS */
 };
 
-float LoadFP16(ByteAddressBuffer src, uint halfIndex)
+NeuralPBR DecodeNeuralMaterialWithGrad(float2 uv, float2 dx, float2 dy)
 {
-    uint word = src.Load((halfIndex >> 1u) << 2u);
-    uint h = ((halfIndex & 1u) == 0u) ? (word & 0xFFFFu) : (word >> 16u);
-    return f16tof32(h);
-}
-
-float3 SampleLatent(Texture2D<float3> tex, float2 uv, float2 duvdx, float2 duvdy, float lodBias)
-{
-    // Equivalent to adding LOD bias by scaling derivatives.
-    float s = exp2(lodBias);
-    return tex.SampleGrad(gLinearWrapSampler, uv, duvdx * s, duvdy * s).xyz;
-}
-
-NeuralPBR DecodeNeuralMaterialWithGrad(float2 uv, float2 duvdx, float2 duvdy)
-{
-    float x[IN_DIM];
-
-    float3 l0 = SampleLatent(gLatentTex0, uv, duvdx, duvdy, gLodBias0);
-    float3 l1 = SampleLatent(gLatentTex1, uv, duvdx, duvdy, gLodBias1);
-    float3 l2 = SampleLatent(gLatentTex2, uv, duvdx, duvdy, gLodBias2);
-    float3 l3 = SampleLatent(gLatentTex3, uv, duvdx, duvdy, gLodBias3);
-
-    x[0]  = l0.x; x[1]  = l0.y; x[2]  = l0.z;
-    x[3]  = l1.x; x[4]  = l1.y; x[5]  = l1.z;
-    x[6]  = l2.x; x[7]  = l2.y; x[8]  = l2.z;
-    x[9]  = l3.x; x[10] = l3.y; x[11] = l3.z;
+    float3 a = latent0.SampleGrad(linearClamp, uv, dx, dy).rgb;
+    float3 b = latent1.SampleGrad(linearClamp, uv, dx, dy).rgb;
+    float3 c = latent2.SampleGrad(linearClamp, uv, dx, dy).rgb;
+    float3 d = latent3.SampleGrad(linearClamp, uv, dx, dy).rgb;
+    float x[12] = {a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z, d.x,d.y,d.z};
 
     const uint fc1WeightBase = 0u;
-    const uint fc1BiasBase   = fc1WeightBase + (HIDDEN_DIM * IN_DIM);
-    const uint fc2WeightBase = fc1BiasBase + HIDDEN_DIM;
-    const uint fc2BiasBase   = fc2WeightBase + (OUT_DIM * HIDDEN_DIM);
+    const uint fc1BiasBase   = fc1WeightBase + (16 * 12);
+    const uint fc2WeightBase = fc1BiasBase + 16;
+    const uint fc2BiasBase   = fc2WeightBase + (8 * 16);
 
-    float h[HIDDEN_DIM];
+    float h[16];
     [unroll]
-    for (uint j = 0u; j < HIDDEN_DIM; ++j)
+    for (uint j = 0u; j < 16; ++j)
     {
-        float s = LoadFP16(gDecoderWeightsFP16, fc1BiasBase + j);
+        float s = weights[fc1BiasBase + j];
         [unroll]
-        for (uint i = 0u; i < IN_DIM; ++i)
+        for (uint i = 0u; i < 12; ++i)
         {
-            float w = LoadFP16(gDecoderWeightsFP16, fc1WeightBase + j * IN_DIM + i);
+            float w = weights[fc1WeightBase + j * 12 + i];
             s += w * x[i];
         }
         h[j] = max(s, 0.0);
     }
 
-    float y[OUT_DIM];
+    float y[8];
     [unroll]
-    for (uint k = 0u; k < OUT_DIM; ++k)
+    for (uint k = 0u; k < 8; ++k)
     {
-        float s = LoadFP16(gDecoderWeightsFP16, fc2BiasBase + k);
+        float s = weights[fc2BiasBase + k];
         [unroll]
-        for (uint j = 0u; j < HIDDEN_DIM; ++j)
+        for (uint j = 0u; j < 16; ++j)
         {
-            float w = LoadFP16(gDecoderWeightsFP16, fc2WeightBase + k * HIDDEN_DIM + j);
+            float w = weights[fc2WeightBase + k * 16 + j];
             s += w * h[j];
         }
         y[k] = s;
     }
 
     NeuralPBR o;
-    // Albedo is trained in [0,1] range (physical reflectance), just saturate.
+    // Reconstructed albedo is sRGB encoded. Convert to linear before lighting.
     // Other outputs (normal, ORM) are in [-1,1] and need the 0.5 + 0.5 conversion.
     o.albedo = saturate(float3(y[0], y[1], y[2]));
 
@@ -136,3 +87,15 @@ NeuralPBR DecodeNeuralMaterial(float2 uv)
 {
     return DecodeNeuralMaterialWithGrad(uv, ddx(uv), ddy(uv));
 }
+
+#ifdef NNPBR_VIEWER
+float4 main(float2 uv : TEXCOORD0) : SV_Target
+{
+    float2 tiled = uv * 2.0;
+    NeuralPBR p = DecodeNeuralMaterialWithGrad(frac(tiled), ddx(tiled), ddy(tiled));
+    if (tiled.x < 1.0)
+        return float4(tiled.y < 1.0 ? p.albedo : p.ao.xxx, 1.0);
+    return float4(tiled.y < 1.0 ? p.normalTS * 0.5 + 0.5 : float3(p.ao, p.roughness, p.metallic), 1.0);
+}
+#endif
+#endif

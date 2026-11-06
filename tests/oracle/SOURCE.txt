@@ -1,0 +1,3 @@
+Independent decoder: https://github.com/iOrange/bcdec
+Vendored bcdec.h SHA256: 134520764d96f70a27db814173616c89ad85db95fbd3328417c7a8c77e7ca189
+License is included at the end of bcdec.h. Used only for tests.

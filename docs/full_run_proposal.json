@@ -1,0 +1,36 @@
+{
+  "status": "launched on RX 9070; see run log for current progress",
+  "gpu_preflight_required": true,
+  "reference_resolution": 2048,
+  "first_material": "red-plaid-bl",
+  "latent_resolutions": [
+    512,
+    256,
+    128,
+    64
+  ],
+  "latent_mips": [
+    8,
+    7,
+    6,
+    5
+  ],
+  "decoder_dimensions": [
+    12,
+    16,
+    8
+  ],
+  "phase_iters": [
+    5000,
+    200000,
+    1000
+  ],
+  "effective_batch_size": 262144,
+  "initial_microbatch_size": 8192,
+  "seed": 7,
+  "shared_scale": true,
+  "signed_bc6": false,
+  "checkpoint_every": 1000,
+  "actual_microbatch_size": 262144,
+  "run_directory": "runs/full_plaid/training"
+}

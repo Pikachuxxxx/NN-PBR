@@ -1,0 +1,152 @@
+{
+  "query_grid": [
+    64,
+    64
+  ],
+  "source": "DDS + FP16 blob",
+  "levels": [
+    {
+      "reference_lod": 0.0,
+      "mse": 0.00026251949020661414,
+      "normalized_psnr_db": 38.81915148942941,
+      "p99_normalized_abs_error": 0.03748359903693199,
+      "channel_mse": {
+        "albedo": 0.0002333004813408479,
+        "normal_xy": 4.051812720717862e-05,
+        "orm": 0.0004397394077386707
+      }
+    },
+    {
+      "reference_lod": 0.5,
+      "mse": 0.00023616485123056918,
+      "normalized_psnr_db": 39.34638389695277,
+      "p99_normalized_abs_error": 0.03521890193223953,
+      "channel_mse": {
+        "albedo": 0.00020337918249424547,
+        "normal_xy": 3.945657954318449e-05,
+        "orm": 0.00040008939686231315
+      }
+    },
+    {
+      "reference_lod": 1.0,
+      "mse": 0.0002241829497506842,
+      "normalized_psnr_db": 39.61003489698421,
+      "p99_normalized_abs_error": 0.0341520681977272,
+      "channel_mse": {
+        "albedo": 0.00018968537915498018,
+        "normal_xy": 3.908956205123104e-05,
+        "orm": 0.0003820761339738965
+      }
+    },
+    {
+      "reference_lod": 1.5,
+      "mse": 0.0002026506990659982,
+      "normalized_psnr_db": 40.120662095888804,
+      "p99_normalized_abs_error": 0.032010190188884735,
+      "channel_mse": {
+        "albedo": 0.0001656789827393368,
+        "normal_xy": 3.890206789947115e-05,
+        "orm": 0.0003487881913315505
+      }
+    },
+    {
+      "reference_lod": 2.0,
+      "mse": 0.00019103892554994673,
+      "normalized_psnr_db": 40.41993712423118,
+      "p99_normalized_abs_error": 0.03064359910786152,
+      "channel_mse": {
+        "albedo": 0.00015297290519811213,
+        "normal_xy": 3.8845369999762625e-05,
+        "orm": 0.00033056727261282504
+      }
+    },
+    {
+      "reference_lod": 2.5,
+      "mse": 0.00017231989477295429,
+      "normalized_psnr_db": 40.76437629892538,
+      "p99_normalized_abs_error": 0.029641715809702873,
+      "channel_mse": {
+        "albedo": 0.00014500079851131886,
+        "normal_xy": 3.323929195175879e-05,
+        "orm": 0.00029235941474325955
+      }
+    },
+    {
+      "reference_lod": 3.0,
+      "mse": 0.00019213170162402093,
+      "normalized_psnr_db": 39.89239257143213,
+      "p99_normalized_abs_error": 0.03903896361589432,
+      "channel_mse": {
+        "albedo": 0.00019369165238458663,
+        "normal_xy": 3.367265162523836e-05,
+        "orm": 0.0002962111320812255
+      }
+    },
+    {
+      "reference_lod": 3.5,
+      "mse": 0.0001409415272064507,
+      "normalized_psnr_db": 41.23354744337557,
+      "p99_normalized_abs_error": 0.032539114356040955,
+      "channel_mse": {
+        "albedo": 0.0001423596841050312,
+        "normal_xy": 2.3059914383338764e-05,
+        "orm": 0.000218111090362072
+      }
+    },
+    {
+      "reference_lod": 4.0,
+      "mse": 0.0001524456893093884,
+      "normalized_psnr_db": 40.863120298091,
+      "p99_normalized_abs_error": 0.027569133788347244,
+      "channel_mse": {
+        "albedo": 0.00015596380399074405,
+        "normal_xy": 2.4087481506285258e-05,
+        "orm": 0.00023449970467481762
+      }
+    },
+    {
+      "reference_lod": 4.5,
+      "mse": 0.00010082361404784024,
+      "normalized_psnr_db": 42.63099507428176,
+      "p99_normalized_abs_error": 0.01955033838748932,
+      "channel_mse": {
+        "albedo": 0.0001043817974277772,
+        "normal_xy": 2.408503496553749e-05,
+        "orm": 0.00014842448581475765
+      }
+    },
+    {
+      "reference_lod": 5.0,
+      "mse": 9.27083456190303e-05,
+      "normalized_psnr_db": 42.83903879249331,
+      "p99_normalized_abs_error": 0.02054402604699135,
+      "channel_mse": {
+        "albedo": 0.0001025209785439074,
+        "normal_xy": 2.4085649783955887e-05,
+        "orm": 0.0001286441838601604
+      }
+    },
+    {
+      "reference_lod": 5.5,
+      "mse": 9.272484749089926e-05,
+      "normalized_psnr_db": 42.70600986686895,
+      "p99_normalized_abs_error": 0.020199056714773178,
+      "channel_mse": {
+        "albedo": 0.00010825850040419027,
+        "normal_xy": 2.4079001377685927e-05,
+        "orm": 0.00012295508349779993
+      }
+    },
+    {
+      "reference_lod": 6.0,
+      "mse": 0.00010044827649835497,
+      "normalized_psnr_db": 42.24385000192438,
+      "p99_normalized_abs_error": 0.021284878253936768,
+      "channel_mse": {
+        "albedo": 0.00012280374357942492,
+        "normal_xy": 2.4073020540527068e-05,
+        "orm": 0.0001290096261072904
+      }
+    }
+  ]
+}

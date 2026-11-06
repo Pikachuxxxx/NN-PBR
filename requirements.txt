@@ -1,0 +1,7 @@
+# Install a PyTorch build appropriate to your CPU / CUDA / HIP environment first.
+# CPU verification environment used torch==2.15.0+cpu on Python 3.12.
+torch>=2.2
+numpy>=1.26
+Pillow>=10
+matplotlib>=3.8
+requests>=2.31

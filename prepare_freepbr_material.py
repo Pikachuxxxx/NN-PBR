@@ -153,7 +153,7 @@ def _save_rgb01(t: torch.Tensor, out_path: Path):
 
 def _normal_xy_to_rgb(nx: torch.Tensor, ny: torch.Tensor) -> torch.Tensor:
     nz = torch.sqrt(torch.clamp(1.0 - nx * nx - ny * ny, min=0.0))
-    return torch.stack([(nx + 1.0) * 0.5, (ny + 1.0) * 0.5, nz], dim=0)
+    return (torch.nn.functional.normalize(torch.stack([nx,ny,nz]),dim=0)+1)*.5
 
 
 def _build_reference_tensor(
@@ -179,7 +179,7 @@ def _build_reference_tensor(
 
     base = torch.cat(
         [
-            albedo,  # Keep albedo in [0, 1] (physical reflectance)
+            albedo,  # Stored sRGB-encoded samples in [0,1]; decode sRGB for physical shading.
             nx.unsqueeze(0),
             ny.unsqueeze(0),
             ao * 2.0 - 1.0,  # Normalize AO to [-1, 1]
@@ -274,6 +274,7 @@ def main():
         {
             "base": base,
             "meta": {
+                "channel_schema": "albedo_srgb01_normal_xy_signed_orm_signed_v1",
                 "product_url": args.product_url,
                 "download_name": zip_name,
                 "variant_keyword": args.variant_keyword,
@@ -286,7 +287,7 @@ def main():
     )
 
     # Save normalized map previews for quick inspection.
-    albedo_preview = (base[0:3] + 1.0) * 0.5
+    albedo_preview = base[0:3]
     nx = base[3]
     ny = base[4]
     normal_preview = _normal_xy_to_rgb(nx, ny)

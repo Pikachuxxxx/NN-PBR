@@ -148,6 +148,10 @@ static ExportMetadata loadExportMetadata(const std::filesystem::path& exportDir)
     const auto metadataPath = exportDir / "metadata.json";
     const std::string json = loadTextFile(metadataPath);
 
+    if (extractJsonUInt(json,"version") != 5 || extractJsonUInt(json,"bc6_mode") != 10 ||
+        extractJsonString(json,"address_mode") != "clamp_to_edge" ||
+        extractJsonString(json,"channel_schema") != "albedo_srgb01_normal_xy_signed_orm_signed_v1")
+        throw std::runtime_error("Unsupported export contract; regenerate export with current trainer");
     metadata.latentCount = extractJsonUInt(json, "latent_count");
     metadata.hiddenDim = extractJsonUInt(json, "hidden_dim");
     metadata.outDim = extractJsonUInt(json, "out_dim");
@@ -198,6 +202,16 @@ DDSFile loadDDS(const std::string& path) {
     result.mipCount = mipCount > 0 ? mipCount : 1;
     result.isBc6h = isDX10 && (dxgiFormat == 95); // DXGI_FORMAT_BC6H_UF16 = 95
     result.isRgba16f = isDX10 && (dxgiFormat == 10); // DXGI_FORMAT_R16G16B16A16_FLOAT = 10
+    if (!isDX10 || fileSize < 148 || read32(4)!=124 || read32(76)!=32 ||
+        read32(132)!=3 || read32(136)!=0 || read32(140)!=1 || read32(144)!=0 ||
+        width==0 || height==0 || mipCount==0 || mipCount>1+uint32_t(std::log2(std::max(width,height))) ||
+        (!result.isBc6h && !result.isRgba16f)) throw std::runtime_error("Invalid DDS contract: "+path);
+    size_t expected=148;
+    for(uint32_t m=0;m<mipCount;++m){
+        size_t w=std::max(1u,width>>m),h=std::max(1u,height>>m);
+        expected+=result.isBc6h ? ((w+3)/4)*((h+3)/4)*16 : w*h*8;
+    }
+    if(expected!=fileSize) throw std::runtime_error("DDS payload length mismatch: "+path);
     result.data.assign(raw.begin() + pixelDataOffset, raw.end());
 
     return result;
@@ -245,7 +259,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 // Vulkan utility functions
 class VulkanApp {
 public:
-    VulkanApp(std::filesystem::path exportDir, bool headless = false, bool debugView = true);
+    VulkanApp(std::filesystem::path exportDir, bool headless = false, bool debugView = true, bool embedded = false);
     ~VulkanApp();
 
     void run();
@@ -253,6 +267,7 @@ public:
 private:
     // Configuration
     bool headless = false;
+    bool embeddedHlsl;
     bool debugView = true;
     std::filesystem::path exportDir;
     ExportMetadata exportMetadata;
@@ -356,8 +371,8 @@ private:
                                VkImageLayout newLayout, uint32_t mipLevels = 1);
 };
 
-VulkanApp::VulkanApp(std::filesystem::path export_dir, bool headless_mode, bool debug_view)
-    : headless(headless_mode), debugView(debug_view), exportDir(std::move(export_dir)) {
+VulkanApp::VulkanApp(std::filesystem::path export_dir, bool headless_mode, bool debug_view, bool embedded)
+    : headless(headless_mode), embeddedHlsl(embedded), debugView(debug_view), exportDir(std::move(export_dir)) {
     std::cout << "[Init] Headless mode: " << (headless ? "ON" : "OFF") << std::endl;
     std::cout << "[Init] Debug view: " << (debugView ? "ON" : "OFF") << std::endl;
     std::cout << "[Init] Export dir: " << exportDir << std::endl;
@@ -510,7 +525,7 @@ void VulkanApp::createInstance() {
     // Enable validation layers
     const char* validationLayers[] = {"VK_LAYER_KHRONOS_validation"};
 
-    std::cout << "Enabled validation layers:" << std::endl;
+    std::cout << "Requested validation layers:" << std::endl;
     for (const auto& layer : validationLayers) {
         std::cout << "  - " << layer << std::endl;
     }
@@ -532,7 +547,13 @@ void VulkanApp::createInstance() {
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
-    createInfo.enabledLayerCount = 0;
+    uint32_t layerCount=0; vkEnumerateInstanceLayerProperties(&layerCount,nullptr);
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount,availableLayers.data());
+    bool hasValidation=false;
+    for(const auto& layer:availableLayers) if(std::strcmp(layer.layerName,validationLayers[0])==0) hasValidation=true;
+    createInfo.enabledLayerCount = hasValidation ? 1u : 0u;
+    std::cout << "Validation active: " << hasValidation << std::endl;
     createInfo.ppEnabledLayerNames = validationLayers;
     createInfo.pNext = &debugCreateInfo;
 
@@ -594,7 +615,23 @@ void VulkanApp::selectPhysicalDevice() {
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-    physicalDevice = devices[0];
+    int bestScore=-1;
+    for(auto candidate:devices){
+        VkPhysicalDeviceFeatures features{};vkGetPhysicalDeviceFeatures(candidate,&features);
+        VkFormatProperties format{};vkGetPhysicalDeviceFormatProperties(candidate,VK_FORMAT_BC6H_UFLOAT_BLOCK,&format);
+        if(!features.textureCompressionBC || !(format.optimalTilingFeatures&VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) continue;
+        VkPhysicalDeviceDynamicRenderingFeatures dynamic{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
+        VkPhysicalDeviceFeatures2 query{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};query.pNext=&dynamic;vkGetPhysicalDeviceFeatures2(candidate,&query);
+        if(!dynamic.dynamicRendering) continue;
+        uint32_t count=0;vkGetPhysicalDeviceQueueFamilyProperties(candidate,&count,nullptr);
+        std::vector<VkQueueFamilyProperties> queues(count);vkGetPhysicalDeviceQueueFamilyProperties(candidate,&count,queues.data());
+        bool usable=false;
+        for(uint32_t i=0;i<count;++i){VkBool32 present=VK_FALSE;vkGetPhysicalDeviceSurfaceSupportKHR(candidate,i,surface,&present);if(present&&(queues[i].queueFlags&VK_QUEUE_GRAPHICS_BIT))usable=true;}
+        VkPhysicalDeviceProperties properties{};vkGetPhysicalDeviceProperties(candidate,&properties);
+        int score=properties.deviceType==VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? 2 : 1;
+        if(usable&&score>bestScore){physicalDevice=candidate;bestScore=score;}
+    }
+    if(bestScore<0)throw std::runtime_error("No GPU supports BC6H filtering, dynamic rendering and graphics/presentation");
 }
 
 void VulkanApp::createLogicalDevice() {
@@ -606,7 +643,9 @@ void VulkanApp::createLogicalDevice() {
 
     uint32_t graphicsFamily = 0;
     for (uint32_t i = 0; i < queueFamilyCount; i++) {
-        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        VkBool32 present=VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,i,surface,&present);
+        if (present && (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
             graphicsFamily = i;
             break;
         }
@@ -635,6 +674,8 @@ void VulkanApp::createLogicalDevice() {
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.pNext = &dynamicRenderingFeatures;
+    VkPhysicalDeviceFeatures enabledFeatures{};enabledFeatures.textureCompressionBC=VK_TRUE;
+    createInfo.pEnabledFeatures=&enabledFeatures;
     createInfo.queueCreateInfoCount = 1;
     createInfo.pQueueCreateInfos = &queueCreateInfo;
     createInfo.enabledExtensionCount = deviceExtensions.size();
@@ -657,6 +698,9 @@ void VulkanApp::createSwapchain() {
     vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, formats.data());
 
     VkSurfaceFormatKHR surfaceFormat = formats[0];
+    bool foundDisplay=false;
+    for(const auto& f:formats) if((f.format==VK_FORMAT_B8G8R8A8_UNORM || f.format==VK_FORMAT_R8G8B8A8_UNORM) && f.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR){surfaceFormat=f;foundDisplay=true;break;}
+    if(!foundDisplay) throw std::runtime_error("Map preview requires UNORM surface to display stored sRGB samples");
     swapChainFormat = surfaceFormat.format;  // SAVE the actual format!
 
     VkExtent2D extent = capabilities.currentExtent;
@@ -727,7 +771,9 @@ void VulkanApp::createCommandPool() {
 
     uint32_t graphicsFamily = 0;
     for (uint32_t i = 0; i < queueFamilyCount; i++) {
-        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        VkBool32 present=VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,i,surface,&present);
+        if (present && (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
             graphicsFamily = i;
             break;
         }
@@ -860,6 +906,11 @@ void VulkanApp::loadNeuralMaterialAssets() {
         std::cout << "  ✓ Latent texture " << i << " loaded (" << ddsFile.mipCount << " mips)" << std::endl;
     }
 
+    if (embeddedHlsl) {
+        std::cout << "[Assets] Embedded HLSL uses only the four latent textures." << std::endl;
+        return;
+    }
+
     // Load decoder weights
     std::cout << "[Assets] Loading decoder weights..." << std::endl;
     std::string decoderPath = (exportDir / "decoder_fp16.bin").string();
@@ -898,6 +949,7 @@ void VulkanApp::loadNeuralMaterialAssets() {
     std::vector<float> fp32Data(numValues);
     for (size_t i = 0; i < numValues; i++) {
         fp32Data[i] = fp16_to_fp32(fp16Data[i]);
+        if(!std::isfinite(fp32Data[i])) throw std::runtime_error("Nonfinite decoder weight");
     }
 
     // Debug: print first few values
@@ -1009,9 +1061,9 @@ void VulkanApp::createDescriptorSet() {
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerInfo.magFilter = VK_FILTER_LINEAR;
     samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerInfo.anisotropyEnable = VK_FALSE;
     samplerInfo.maxAnisotropy = 1.0f;
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -1067,7 +1119,11 @@ void VulkanApp::createDescriptorSet() {
     descriptorWrites[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorWrites[5].pBufferInfo = &lodBiasInfo;
 
-    vkUpdateDescriptorSets(device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    if (embeddedHlsl) {
+        vkUpdateDescriptorSets(device, 4, &descriptorWrites[1], 0, nullptr);
+    } else {
+        vkUpdateDescriptorSets(device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    }
 }
 
 std::vector<char> VulkanApp::loadShaderFile(const std::string& filename) {
@@ -1109,7 +1165,8 @@ void VulkanApp::createPipeline() {
     const char* fragShaderName = debugView
         ? "neural_material_decode_debug.frag.spv"
         : "neural_material_decode.frag.spv";
-    std::vector<char> fragShaderCode = loadShaderFile(fragShaderName);
+    std::vector<char> fragShaderCode = loadShaderFile(embeddedHlsl
+        ? std::filesystem::absolute(exportDir / "material.frag.spv").string() : fragShaderName);
     std::cout << "[Pipeline] Fragment shader loaded: " << fragShaderCode.size() << " bytes" << std::endl;
 
     std::vector<char> vertShaderCode = loadShaderFile("neural_material_decode.vert.spv");
@@ -1929,10 +1986,13 @@ int main(int argc, char* argv[]) {
     try {
         bool headless = false;
         bool debugView = true;
+        bool embedded = false;
         std::filesystem::path exportDir = defaultExportDir();
         for (int i = 1; i < argc; i++) {
             if (std::string(argv[i]) == "--headless") {
-                headless = true;
+                throw std::runtime_error("--headless did not render or validate pixels; use the numerical GPU probe instead");
+            } else if (std::string(argv[i]) == "--embedded-hlsl") {
+                embedded = true;
             } else if (std::string(argv[i]) == "--final-view") {
                 debugView = false;
             } else if (std::string(argv[i]) == "--debug-view") {
@@ -1952,7 +2012,7 @@ int main(int argc, char* argv[]) {
         std::cout << "View: " << (debugView ? "DEBUG" : "FINAL") << std::endl;
         std::cout << std::endl;
 
-        VulkanApp app(exportDir, headless, debugView);
+        VulkanApp app(exportDir, headless, debugView && !embedded, embedded);
         app.run();
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
