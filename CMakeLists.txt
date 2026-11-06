@@ -52,8 +52,8 @@ set(SPV_FILES "")
 foreach(SHADER ${SHADER_FILES})
     add_custom_command(
         OUTPUT ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv
-        COMMAND ${GLSLC} ${CMAKE_SOURCE_DIR}/shaders/${SHADER} -o ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv
-        DEPENDS ${CMAKE_SOURCE_DIR}/shaders/${SHADER} ${CMAKE_SOURCE_DIR}/shaders/material_decoder.glsl
+        COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/demo/shaders/${SHADER} -o ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/demo/shaders/${SHADER} ${CMAKE_CURRENT_SOURCE_DIR}/demo/shaders/material_decoder.glsl
     )
     list(APPEND SPV_FILES ${CMAKE_BINARY_DIR}/shaders/${SHADER}.spv)
 endforeach()
@@ -64,7 +64,7 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPV_FILES})
 # Main Executable
 # ==============================================================================
 add_executable(vk_neural_demo
-    vk_neural_material_demo.cpp
+    demo/vk_neural_material_demo.cpp
 )
 
 add_dependencies(vk_neural_demo compile_shaders)
@@ -77,6 +77,7 @@ target_include_directories(vk_neural_demo PRIVATE
 
 # Pass CMAKE_BINARY_DIR to the source code for shader path resolution
 target_compile_definitions(vk_neural_demo PRIVATE
+    NNPBR_SAMPLE_EXPORT="${CMAKE_CURRENT_SOURCE_DIR}/models/red-plaid-64/export"
     CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}"
 )
 

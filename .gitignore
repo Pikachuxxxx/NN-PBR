@@ -61,3 +61,10 @@ runs/*/export/metadata/*.pt
 # Claude Code local workspace (worktrees, conversation state) — not project files
 .claude/worktrees/
 .claude/settings.local.json
+
+# Rebuildable material downloads and preparation outputs
+data/freepbr/raw/
+data/freepbr/materials/*/extracted/
+data/freepbr/materials/*/reference_8ch.pt
+data/freepbr/materials/*/dataset_report.json
+data/freepbr/materials/*/maps/*_preview.png

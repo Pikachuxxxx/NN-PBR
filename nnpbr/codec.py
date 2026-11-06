@@ -6,7 +6,7 @@ from typing import List
 import math
 import numpy as np
 import torch
-from bc6h_spec import (
+from .bc6h_spec import (
     BC67_WEIGHT_MAX,
     BC67_WEIGHT_ROUND,
     BC67_WEIGHT_SHIFT,

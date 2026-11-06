@@ -134,6 +134,6 @@ def load_reference_mips(
             )
         if (m[:3] < 0).any() or (m[:3] > 1).any() or (m[3:].abs() > 1).any():
             raise ValueError(
-                "Dataset channel range mismatch. Rebuild legacy signed-albedo data with tools/prepare_local.py"
+                "Dataset channel range mismatch. Rebuild legacy signed-albedo data with python -m nnpbr.prepare"
             )
     return [m.to(device) for m in mips]

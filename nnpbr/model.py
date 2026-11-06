@@ -6,7 +6,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from bc6h_spec import (
+from .bc6h_spec import (
     BC67_WEIGHT_MAX,
     BC6H_MODE10_ENDPOINT_BITS,
     BC6H_MODE10_ENDPOINT_FLOATS_UF16,

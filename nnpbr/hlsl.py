@@ -8,7 +8,7 @@ import subprocess
 from tempfile import TemporaryDirectory
 
 
-TEMPLATE = Path(__file__).resolve().parents[1] / "shaders/neural_material_decode.hlsl"
+TEMPLATE = Path(__file__).with_name("material_template.hlsl")
 
 
 def write_hlsl(directory):

@@ -17,7 +17,7 @@ def python(*args, cpu=False):
     subprocess.run([sys.executable, *args], cwd=ROOT, env=env, check=True)
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     for name, help_text in (("smoke", "Bake a small CPU test"), ("train", "Bake a full 2K material on GPU")):
@@ -31,7 +31,7 @@ def main():
     view.add_argument("run", type=Path)
     view.add_argument("--hlsl", action="store_true", help="Compile and display the embedded-weight HLSL shader")
     view.add_argument("--viewer", type=Path, help="Path to a custom viewer build")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.command == "view":
         export = args.run.resolve() / "export"
         if not (export / "metadata.json").is_file():
@@ -61,7 +61,7 @@ def main():
                 parser.error("GPU training requires a GPU-enabled PyTorch installation.")
         run.mkdir(parents=True)
         levels = "7" if small else "9"
-        python("tools/prepare_local.py", "--maps", ROOT / "data/freepbr/materials" / args.material / "maps",
+        python("-m", "nnpbr.prepare", "--maps", ROOT / "data/freepbr/materials" / args.material / "maps",
                "--output", run / "reference.pt", "--size", "64" if small else "2048", "--levels", levels, cpu=True)
         options = (["--latent-res", "32,16,8,4", "--latent-mips", "4,3,2,1",
                     "--phase1-iters", "150", "--phase2-iters", "400", "--phase3-iters", "100",

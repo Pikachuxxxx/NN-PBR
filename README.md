@@ -8,7 +8,7 @@ This "bakes" one material into four small BC6H textures and a tiny decoder. In t
 
 Here's the plaid from the original RX 9070 run. Look at the bright spots in the neural output next to the reference.
 
-![Original plaid reference, neural reconstruction and difference](demo/all_analysis.png)
+![Original plaid reference, neural reconstruction and difference](docs/figures/original_plaid.png)
 
 **What we got wrong.** Each 4Ãƒâ€”4 block has two groups of texels. The old trainer gave each group the other group's values. The GPU read the groups in the correct order, so the shader saw different inputs from the ones we'd trained the decoder on. Another 200k updates could still fit the wrong inputs. We could reproduce the swap in code. The weights for this screenshot are gone, so we can't trace each bright spot back to it.
 
@@ -27,7 +27,7 @@ python -m pip install -r requirements.txt
 ### 1. Try the small bake
 
 ```sh
-python tools/material.py smoke
+python -m nnpbr smoke
 ```
 
 This takes the bundled red plaid maps, builds a 64Ãƒâ€”64 reference, trains on CPU (150 / 400 / 100 updates), writes the runtime files and scores them against the reference at each mip. Open `runs/red-plaid-bl/smoke/mip_metrics.json` for the numbers. To try another material, append `scratched-up-steel-bl` or `worn-rusted-painted-bl`. To repeat a bake, give it a fresh directory with `--out runs/plaid-second-try`.
@@ -39,15 +39,15 @@ Install the Vulkan SDK with glslc, CMake and a C++17 compiler. Build the viewer 
 ```sh
 cmake -S . -B build
 cmake --build build --config Release
-python tools/material.py view runs/red-plaid-bl/smoke
+python -m nnpbr view runs/red-plaid-bl/smoke
 ```
 
-The app shows the reconstructed material maps. Escape closes it. For an existing viewer build, add `--viewer PATH_TO_EXECUTABLE`.
+For the bundled plaid, you can also launch the built vk_neural_demo executable directly. The app shows the reconstructed material maps. Escape closes it. For an existing viewer build, add `--viewer PATH_TO_EXECUTABLE`.
 
 ### 3. Bake a full material
 
 ```sh
-python tools/material.py train red-plaid-bl
+python -m nnpbr train red-plaid-bl
 ```
 
 This starts a new GPU job for a 2048Ãƒâ€”2048 reference. Warmup trains free features and the decoder for 5k updates. The next 200k train endpoints, indices and decoder with the block partitions fixed. The final 1k freeze the decoded features and tune only the decoder. The preset uses 262,144 samples per update in one GPU batch. For less GPU memory or to resume a checkpoint, use the trainer directly with the matching settings (`python -m nnpbr --help`).
@@ -55,8 +55,8 @@ This starts a new GPU job for a 2048Ãƒâ€”2048 reference. Warmup trains fr
 The full bake writes to `runs/red-plaid-bl/train`. Both presets score the export automatically. To check it again or open it later:
 
 ```sh
-python tools/material.py check runs/red-plaid-bl/train
-python tools/material.py view runs/red-plaid-bl/train
+python -m nnpbr check runs/red-plaid-bl/train
+python -m nnpbr view runs/red-plaid-bl/train
 ```
 
 Both training modes save an SVG loss plot to `analysis/training_loss.svg`. Updates run continuously across all three phases. Each dot is the loss on one logged training batch. To plot an existing run or take a snapshot while it writes `train.log`:
@@ -74,7 +74,7 @@ Inside the run's `export/` folder you'll find four `latent_XX.bc6.dds` mip pyram
 Want to try it without training? Build the viewer as above and open the bundled 64Ã—64 plaid bake:
 
 ```sh
-python tools/material.py view models/red-plaid-64 --hlsl
+python -m nnpbr view models/red-plaid-64 --hlsl
 ```
 
 Each new bake writes `export/material.hlsl` with all 344 decoder constants. To generate it from an existing v5 export, run `python -m nnpbr.hlsl PATH_TO_EXPORT`. Add `--spirv` to compile the fragment shader for Vulkan. The viewer shortcut does both steps for you using glslc from the Vulkan SDK.

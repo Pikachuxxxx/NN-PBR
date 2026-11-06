@@ -1,7 +1,7 @@
 """Unsigned Mode 10 arithmetic: exact forward values and continuous training math."""
 
 import torch
-from bc6h_spec import BC6H_MODE10_WEIGHTS
+from .bc6h_spec import BC6H_MODE10_WEIGHTS
 
 
 def half_bits_to_float(y):

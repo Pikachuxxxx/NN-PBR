@@ -10,7 +10,7 @@ import hashlib
 from PIL import Image
 from .model import NeuralMaterialCompressionModel, MaterialDecoderMLP
 from .codec import decode_bc6h_dds
-from bc6h_spec import BC6H_MODE10_ENDPOINT_BITS, BC6H_MODE10_INDEX_BITS
+from .bc6h_spec import BC6H_MODE10_ENDPOINT_BITS, BC6H_MODE10_INDEX_BITS
 from .codec import (
     _pack_mip_blocks_to_bc6h_mode10_bytes,
     _decode_mode10_params_to_mip,

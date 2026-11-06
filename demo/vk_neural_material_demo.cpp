@@ -87,7 +87,7 @@ struct ExportMetadata {
 };
 
 static std::filesystem::path defaultExportDir() {
-    return std::filesystem::path(CMAKE_BINARY_DIR).parent_path() / "runs" / "mode10_paper512_512_cpu" / "export";
+    return std::filesystem::path(NNPBR_SAMPLE_EXPORT);
 }
 
 static std::string loadTextFile(const std::filesystem::path& path) {

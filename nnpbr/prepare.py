@@ -1,11 +1,11 @@
 """Rebuild channel-correct data from existing source maps; no downloads."""
 
-import argparse, sys, hashlib
+import argparse
+import hashlib
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch
-from prepare_freepbr_material import _build_reference_tensor
+from .freepbr import _build_reference_tensor
 from nnpbr.sampling import build_mip_chain
 
 p = argparse.ArgumentParser(description=__doc__)
