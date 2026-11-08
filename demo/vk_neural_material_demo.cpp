@@ -257,9 +257,14 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 }
 
 // Vulkan utility functions
+struct ViewerInput {
+    std::filesystem::path weights;
+    std::array<std::filesystem::path, 4> latents;
+};
+
 class VulkanApp {
 public:
-    VulkanApp(std::filesystem::path exportDir, bool headless = false, bool debugView = true, bool embedded = false);
+    VulkanApp(std::filesystem::path exportDir, bool headless, bool debugView, bool embedded, ViewerInput input);
     ~VulkanApp();
 
     void run();
@@ -267,6 +272,7 @@ public:
 private:
     // Configuration
     bool headless = false;
+    ViewerInput input;
     bool embeddedHlsl;
     bool debugView = true;
     std::filesystem::path exportDir;
@@ -371,8 +377,8 @@ private:
                                VkImageLayout newLayout, uint32_t mipLevels = 1);
 };
 
-VulkanApp::VulkanApp(std::filesystem::path export_dir, bool headless_mode, bool debug_view, bool embedded)
-    : headless(headless_mode), embeddedHlsl(embedded), debugView(debug_view), exportDir(std::move(export_dir)) {
+VulkanApp::VulkanApp(std::filesystem::path export_dir, bool headless_mode, bool debug_view, bool embedded, ViewerInput files)
+    : headless(headless_mode), input(std::move(files)), embeddedHlsl(embedded), debugView(debug_view), exportDir(std::move(export_dir)) {
     std::cout << "[Init] Headless mode: " << (headless ? "ON" : "OFF") << std::endl;
     std::cout << "[Init] Debug view: " << (debugView ? "ON" : "OFF") << std::endl;
     std::cout << "[Init] Export dir: " << exportDir << std::endl;
@@ -394,7 +400,6 @@ void VulkanApp::initWindow() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    std::cout << "[Window] Creating window (1280x800)..." << std::endl;
     window = glfwCreateWindow(1280, 800, "NN-PBR Vulkan Demo", nullptr, nullptr);
     if (!window) {
         throw std::runtime_error("Failed to create window");
@@ -792,7 +797,15 @@ void VulkanApp::createCommandPool() {
 }
 
 void VulkanApp::loadNeuralMaterialAssets() {
-    exportMetadata = loadExportMetadata(exportDir);
+    if (input.weights.empty()) {
+        exportMetadata = loadExportMetadata(exportDir);
+    } else {
+        // Fixed NN-PBR decoder contract. The final shader takes its LOD from texture gradients.
+        exportMetadata.latentCount = 4;
+        exportMetadata.hiddenDim = 16;
+        exportMetadata.outDim = 8;
+        exportMetadata.bc6Format = "DXGI_FORMAT_BC6H_UF16";
+    }
     if (exportMetadata.latentCount != 4) {
         throw std::runtime_error("Vulkan sample currently supports exactly 4 latent textures.");
     }
@@ -809,7 +822,7 @@ void VulkanApp::loadNeuralMaterialAssets() {
     for (int i = 0; i < 4; i++) {
         std::cout << "[Assets] Loading latent texture " << i << "..." << std::endl;
         std::string idx = (i < 10 ? "0" : "") + std::to_string(i);
-        std::string ddsPath = (exportDir / ("latent_" + idx + ".bc6.dds")).string();
+        std::string ddsPath = input.weights.empty() ? (exportDir / ("latent_" + idx + ".bc6.dds")).string() : input.latents[i].string();
 
         std::cout << "  - Path: " << ddsPath << std::endl;
         DDSFile ddsFile = loadDDS(ddsPath);
@@ -913,7 +926,7 @@ void VulkanApp::loadNeuralMaterialAssets() {
 
     // Load decoder weights
     std::cout << "[Assets] Loading decoder weights..." << std::endl;
-    std::string decoderPath = (exportDir / "decoder_fp16.bin").string();
+    std::string decoderPath = input.weights.empty() ? (exportDir / "decoder_fp16.bin").string() : input.weights.string();
     std::cout << "  - Path: " << decoderPath << std::endl;
 
     std::ifstream decoderFile(decoderPath, std::ios::binary);
@@ -926,6 +939,7 @@ void VulkanApp::loadNeuralMaterialAssets() {
     decoderFile.seekg(0, std::ios::beg);
     std::cout << "  - Size: " << decoderSize << " bytes" << std::endl;
 
+    if (decoderSize != 688) throw std::runtime_error("Expected 688 bytes of FP16 weights");
     std::vector<char> decoderData(decoderSize);
     decoderFile.read(decoderData.data(), decoderSize);
     decoderFile.close();
@@ -1987,6 +2001,8 @@ int main(int argc, char* argv[]) {
         bool headless = false;
         bool debugView = true;
         bool embedded = false;
+        ViewerInput input;
+        bool explicitDir = false;
         std::filesystem::path exportDir = defaultExportDir();
         for (int i = 1; i < argc; i++) {
             if (std::string(argv[i]) == "--headless") {
@@ -1999,8 +2015,20 @@ int main(int argc, char* argv[]) {
                 debugView = true;
             } else if (std::string(argv[i]) == "--export-dir" && (i + 1) < argc) {
                 exportDir = argv[++i];
+                explicitDir = true;
+            } else if (std::string(argv[i]) == "--weights" && i + 1 < argc) {
+                input.weights = argv[++i];
+            } else if (std::string(argv[i]) == "--latents" && i + 4 < argc) {
+                for (auto& latent : input.latents) latent = argv[++i];
+            } else {
+                throw std::runtime_error("Unknown or incomplete viewer option: " + std::string(argv[i]));
             }
         }
+
+        if (input.weights.empty() != input.latents.front().empty())
+            throw std::runtime_error("Supply --weights FILE and --latents DDS0 DDS1 DDS2 DDS3 together");
+        if (!input.weights.empty() && (explicitDir || embedded))
+            throw std::runtime_error("Explicit weight files require the buffer decoder; omit --export-dir and --embedded-hlsl");
 
         std::cout << "NN-PBR Vulkan Demo" << std::endl;
         if (headless) {
@@ -2012,7 +2040,7 @@ int main(int argc, char* argv[]) {
         std::cout << "View: " << (debugView ? "DEBUG" : "FINAL") << std::endl;
         std::cout << std::endl;
 
-        VulkanApp app(exportDir, headless, debugView && !embedded, embedded);
+        VulkanApp app(exportDir, headless, debugView && !embedded, embedded, std::move(input));
         app.run();
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

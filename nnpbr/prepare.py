@@ -9,15 +9,26 @@ from .freepbr import _build_reference_tensor
 from nnpbr.sampling import build_mip_chain
 
 p = argparse.ArgumentParser(description=__doc__)
-p.add_argument("--maps", required=True, type=Path)
+source = p.add_mutually_exclusive_group(required=True)
+source.add_argument("--maps", type=Path)
+source.add_argument(
+    "--files",
+    nargs=5,
+    type=Path,
+    metavar=("ALBEDO", "NORMAL", "AO", "ROUGHNESS", "METALLIC"),
+)
 p.add_argument("--output", required=True, type=Path)
 p.add_argument("--size", type=int, default=128)
 p.add_argument("--levels", type=int, default=8)
 a = p.parse_args()
-paths = [
-    a.maps.resolve() / (s + ".png")
-    for s in ("albedo", "normal", "ao", "roughness", "metallic")
-]
+paths = (
+    [path.resolve() for path in a.files]
+    if a.files
+    else [
+        a.maps.resolve() / (s + ".png")
+        for s in ("albedo", "normal", "ao", "roughness", "metallic")
+    ]
+)
 base, files, dx = _build_reference_tensor(*paths, a.size)
 a.output.parent.mkdir(parents=True, exist_ok=True)
 torch.save(

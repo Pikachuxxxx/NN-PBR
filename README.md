@@ -52,6 +52,30 @@ cmake --build build --config Release
 build/Release/vk_neural_demo.exe --export-dir models/hammered-copper-512/export --embedded-hlsl
 ```
 
+## Qt material editor (Windows)
+
+The Qt app imports albedo, normal, AO, roughness and metallic maps. Select the maps individually or import a folder containing `albedo.png`, `normal.png`, `ao.png`, `roughness.png` and `metallic.png`. DirectX normal maps with `dx` or `directx` in the filename have their green channel flipped during preparation.
+
+Build the Vulkan viewer as above and install the optional Qt dependency in the same Python environment as PyTorch.
+
+```sh
+python -m pip install PySide6-Essentials
+python -m nnpbr.studio
+```
+
+The workspace keeps five source thumbnails beside the preset, progress bar and live loss plot. **Advanced settings** exposes feature sizes, mips, phase lengths, learning rates, batch sizes, seed, checkpoint interval and optimizer settings. Training writes to a fresh directory under `runs/studio/`.
+
+**Open model** loads an existing export for analysis. Finishing training loads the new export automatically. Select a material channel to compare the original, decoded result and absolute error alongside all four latent textures. The source comes from the training reference when available, or from the five selected maps. The panel reports channel MSE and the maximum displayed error. Without a reference, the decoded material and latent previews remain available.
+
+**Weights & mips** displays numeric FP16 decoder parameters and individual BC6H mip previews. **Launch Vulkan** opens the standalone viewer with the selected weights and four DDS textures. **Export package** copies the runtime assets. The File menu accepts loose BIN and DDS files. Use `--export-dir` and `--maps` to open a model and source folder from the CLI. For a custom viewer build, pass `--viewer PATH_TO_EXECUTABLE`.
+
+The Vulkan CLI also accepts individual runtime files. Supply the 688-byte decoder blob and four unsigned BC6H DDS pyramids in feature order (0 through 3). This path uses the GLSL buffer decoder and supports files outside an export directory.
+
+```powershell
+$export = 'models/hammered-copper-512/export'
+build/Release/vk_neural_demo.exe --final-view --weights "$export/decoder_fp16.bin" --latents "$export/latent_00.bc6.dds" "$export/latent_01.bc6.dds" "$export/latent_02.bc6.dds" "$export/latent_03.bc6.dds"
+```
+
 ## Training
 
 Python 3.12 with PyTorch. Install the PyTorch build for the target GPU before the project dependencies. [AMD Windows installation guide](https://rocm.docs.amd.com/en/latest/install/rocm.html?fam=radeon&gfx=gfx1201&gpu=rx-9070&i=pip&os=windows&w=graphics&windows-ver=11).
