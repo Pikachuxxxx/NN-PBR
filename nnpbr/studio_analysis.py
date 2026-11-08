@@ -24,7 +24,7 @@ def thumbnail(values, file):
 
 def channels(tensor):
     albedo, normal, orm = _pbr_views(tensor)
-    return [albedo, normal, *(orm[:, :, i] for i in range(3))]
+    return [albedo, normal, *(orm[:, :, i] for i in range(3)), orm]
 
 
 def main():
@@ -65,7 +65,14 @@ def main():
     for i, (view, components) in enumerate(
         zip(
             channels(decoded),
-            [slice(0, 3), slice(3, 5), slice(5, 6), slice(6, 7), slice(7, 8)],
+            [
+                slice(0, 3),
+                slice(3, 5),
+                slice(5, 6),
+                slice(6, 7),
+                slice(7, 8),
+                slice(5, 8),
+            ],
         )
     ):
         thumbnail(view, args.output / f"decoded-{i}.png")

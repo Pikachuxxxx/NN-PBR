@@ -12,11 +12,20 @@ from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
     QLabel,
+    QSizePolicy,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
+
+
+def panel_splitter(orientation):
+    splitter = QSplitter(orientation)
+    splitter.setChildrenCollapsible(False)
+    splitter.setHandleWidth(6)
+    return splitter
 
 
 class LossGraph(QWidget):
@@ -80,7 +89,13 @@ class ModelData(QWidget):
     def __init__(self, weights, textures, parent):
         super().__init__(parent)
         self.cache = tempfile.TemporaryDirectory()
-        body = QVBoxLayout(self)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        splitter = panel_splitter(Qt.Vertical)
+        layout.addWidget(splitter)
+        texture_panel = QWidget()
+        splitter.addWidget(texture_panel)
+        body = QVBoxLayout(texture_panel)
         body.addWidget(QLabel("Latent textures"))
         self.layer = QComboBox()
         self.layer.addItems(
@@ -91,7 +106,8 @@ class ModelData(QWidget):
         body.addWidget(self.mip)
         self.image = QLabel("Decoding texture…")
         self.image.setAlignment(Qt.AlignCenter)
-        self.image.setFixedHeight(154)
+        self.image.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
+        self.image.setMinimumHeight(50)
         body.addWidget(self.image)
         self.range = QLabel()
         self.range.setWordWrap(True)
@@ -99,9 +115,9 @@ class ModelData(QWidget):
         self.inventory = []
         self.layer.currentIndexChanged.connect(self.select_layer)
         self.mip.currentIndexChanged.connect(self.show_mip)
-        body.addWidget(QLabel("Decoder weights"))
         weights_tab = QWidget()
         weights_layout = QVBoxLayout(weights_tab)
+        weights_layout.addWidget(QLabel("Decoder weights"))
         self.tensor = QComboBox()
         self.tensor.addItems(
             [
@@ -120,7 +136,11 @@ class ModelData(QWidget):
         weights_layout.addWidget(
             QLabel(f"{weights.name}   ·   FP16   ·   344 parameters")
         )
-        body.addWidget(weights_tab, 1)
+        splitter.addWidget(weights_tab)
+        splitter.setSizes([240, 260])
+        splitter.splitterMoved.connect(
+            lambda *_: self.show_mip(self.mip.currentIndex())
+        )
         self.values = struct.unpack("<344e", weights.read_bytes())
         self.tensor.currentIndexChanged.connect(self.show_tensor)
         self.show_tensor(0)
@@ -160,7 +180,7 @@ class ModelData(QWidget):
         entry = self.inventory[i][j]
         pix = QPixmap(str(Path(self.cache.name) / f"{i}-{j}.png"))
         self.image.setPixmap(
-            pix.scaled(148, 148, Qt.KeepAspectRatio, Qt.FastTransformation)
+            pix.scaled(self.image.size(), Qt.KeepAspectRatio, Qt.FastTransformation)
         )
         self.range.setText(
             f"Decoded RGB range   {entry['min']:.5g} … {entry['max']:.5g}     ·     Scaled to fit the preview"

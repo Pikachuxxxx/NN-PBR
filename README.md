@@ -52,9 +52,9 @@ cmake --build build --config Release
 build/Release/vk_neural_demo.exe --export-dir models/hammered-copper-512/export --embedded-hlsl
 ```
 
-## Qt material editor (Windows)
+## Qt material editor
 
-The Qt app imports albedo, normal, AO, roughness and metallic maps. Select the maps individually or import a folder containing `albedo.png`, `normal.png`, `ao.png`, `roughness.png` and `metallic.png`. DirectX normal maps with `dx` or `directx` in the filename have their green channel flipped during preparation.
+The Qt app imports albedo, normal, AO, roughness and metallic maps. Select each map individually. The optional CLI folder shortcut expects `albedo.png`, `normal.png`, `ao.png`, `roughness.png` and `metallic.png`. DirectX normal maps with `dx` or `directx` in the filename have their green channel flipped during preparation.
 
 Build the Vulkan viewer as above and install the optional Qt dependency in the same Python environment as PyTorch.
 
@@ -65,7 +65,27 @@ python -m nnpbr.studio
 
 The workspace keeps five source thumbnails beside the preset, progress bar and live loss plot. **Advanced settings** exposes feature sizes, mips, phase lengths, learning rates, batch sizes, seed, checkpoint interval and optimizer settings. Training writes to a fresh directory under `runs/studio/`.
 
-**Open model** loads an existing export for analysis. Finishing training loads the new export automatically. Select a material channel to compare the original, decoded result and absolute error alongside all four latent textures. The source comes from the training reference when available, or from the five selected maps. The panel reports channel MSE and the maximum displayed error. Without a reference, the decoded material and latent previews remain available.
+Drag the dividers to resize the source list, settings, preview, loss graph, log and optional model inspector. Studio uses Qt Fusion with dark horizontal and vertical scrollbars. **Compile forward** uses PyTorch Inductor by default. On a GPU without Triton it selects `aot_eager`, which captures the graph and executes GPU operations with eager kernels.
+
+Use **Add material…** to enter a name, then choose each PNG with the button beside its channel. Maps can have arbitrary filenames and come from different folders. Click a source row to preview or replace its maps. Check the materials to include, then choose **Train N materials**. Studio trains checked sources in list order using the current settings and writes a separate checkpoint and export for each. Double-click a completed row to inspect its result. The minus button removes the highlighted row from the list. The CLI also accepts repeated `--maps` arguments.
+
+**Open model** loads an existing export for analysis. The overview displays albedo, normals and packed ORM in rows, with the source, decoded result, absolute error and latent previews side by side. Each row reports MSE. Select a channel to inspect its error scale. The source comes from the training reference when available, or from the five selected maps. Without a reference, the decoded material and latent previews remain available.
+
+On native Linux, install a PyTorch build for your GPU and the Vulkan, Qt and GLFW platform dependencies. The standard single-configuration CMake build places the viewer at `build/vk_neural_demo`. Studio also accepts a custom `--viewer` path. Linux GPU performance has yet to be measured for this project. [AMD Radeon Linux compatibility matrix](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/native_linux/native_linux_compatibility.html).
+
+For Triton on the RX 9070, install the matching PyTorch and Triton wheels from the same ROCm release in the Studio environment. Select **Advanced settings → Compile forward with PyTorch**, or pass `--compile-model` to the trainer. The training log identifies the selected GPU and Triton version when using Inductor. [AMD Linux wheel installation](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/native_linux/install-pytorch.html).
+
+To verify the compiler on that machine before a long bake, compile the warmup and BC6 forward passes and compare their outputs and parameter gradients with eager execution:
+
+```sh
+python -m nnpbr.check_triton --device cuda:0
+```
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+python -m nnpbr.studio --export-dir models/hammered-copper-512/export
+```
 
 **Weights & mips** displays numeric FP16 decoder parameters and individual BC6H mip previews. **Launch Vulkan** opens the standalone viewer with the selected weights and four DDS textures. **Export package** copies the runtime assets. The File menu accepts loose BIN and DDS files. Use `--export-dir` and `--maps` to open a model and source folder from the CLI. For a custom viewer build, pass `--viewer PATH_TO_EXECUTABLE`.
 

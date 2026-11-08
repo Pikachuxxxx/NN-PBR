@@ -55,6 +55,17 @@ def train(model, ref_mips, cfg: TrainConfig):
     if min(cfg.phase1_iters, cfg.phase2_iters, cfg.phase3_iters) < 0:
         raise ValueError("Stage lengths cannot be negative")
     device = torch.device(cfg.device)
+    compile_backend = "inductor"
+    if cfg.compile_model and device.type == "cuda":
+        from torch.utils._triton import has_triton
+
+        if not has_triton():
+            compile_backend = "aot_eager"
+            print("[compile] Triton unavailable; using PyTorch AOT Autograd with eager GPU kernels.", flush=True)
+        else:
+            import triton
+
+            print(f"[compile] Inductor with Triton {triton.__version__} on {torch.cuda.get_device_name(device)}", flush=True)
     max_lod = float(len(ref_mips) - 1)
     digest = hashlib.sha256()
     for mip in ref_mips:
@@ -145,7 +156,7 @@ def train(model, ref_mips, cfg: TrainConfig):
             scheduler.load_state_dict(resume["scheduler"])
         begin = resume["completed"] if same_phase else 0
         if cfg.compile_model:
-            forward = torch.compile(forward, fullgraph=False)
+            forward = torch.compile(forward, backend=compile_backend, fullgraph=False)
         phase_start = time.perf_counter()
         for step in range(begin, iterations):
             opt.zero_grad(set_to_none=True)

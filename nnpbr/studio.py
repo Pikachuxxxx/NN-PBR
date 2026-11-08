@@ -1,4 +1,4 @@
-"""Windows Qt workstation for NN-PBR training and Vulkan preview."""
+"""Qt workstation for NN-PBR training and Vulkan preview."""
 
 import argparse
 import json
@@ -23,8 +23,11 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGridLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
@@ -38,7 +41,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .studio_inspector import LossGraph, ModelData
+from .studio_inspector import LossGraph, ModelData, panel_splitter
 
 ROOT = Path(__file__).resolve().parents[1]
 CHANNELS = ("Albedo", "Normal", "AO", "Roughness", "Metallic")
@@ -114,7 +117,19 @@ class Studio(QMainWindow):
             QPushButton#train {background:#346684;border-color:#4f859f;}
             QProgressBar {background:#16191d;color:white;text-align:center;} QProgressBar::chunk {background:#367594;}
             QHeaderView::section {background:#343940;color:#e2e5ea;}
-            QScrollArea {border:none;} QSplitter::handle {background:#1a1d21;}
+            QScrollArea {border:none;}
+            QSplitter::handle {background:#23272c;}
+            QSplitter::handle:hover, QSplitter::handle:pressed {background:#4a7188;}
+            QScrollBar {background:#111418; border:0; margin:0;}
+            QScrollBar:vertical {width:11px;}
+            QScrollBar:horizontal {height:11px;}
+            QScrollBar::handle {background:#49515a; border:2px solid #111418; border-radius:5px;}
+            QScrollBar::handle:vertical {min-height:26px;}
+            QScrollBar::handle:horizontal {min-width:26px;}
+            QScrollBar::handle:hover {background:#6c7884;}
+            QScrollBar::handle:pressed {background:#648da5;}
+            QScrollBar::sub-line, QScrollBar::add-line {height:0; width:0;}
+            QScrollBar::add-page, QScrollBar::sub-page {background:transparent;}
         """)
         bar = QToolBar()
         bar.setMovable(False)
@@ -129,20 +144,50 @@ class Studio(QMainWindow):
 
         root = QWidget()
         self.setCentralWidget(root)
-        columns = QHBoxLayout(root)
-        columns.setContentsMargins(8, 4, 8, 6)
-        columns.setSpacing(9)
-        self.settings_box = QWidget()
-        left = QVBoxLayout(self.settings_box)
+        layout = QHBoxLayout(root)
+        layout.setContentsMargins(8, 4, 8, 6)
+        self.columns = panel_splitter(Qt.Horizontal)
+        layout.addWidget(self.columns)
+        self.settings_box = panel_splitter(Qt.Vertical)
+        self.columns.addWidget(self.settings_box)
+
+        def sidebar_panel():
+            content = QWidget()
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setWidget(content)
+            self.settings_box.addWidget(scroll)
+            return QVBoxLayout(content)
+
+        left = sidebar_panel()
         left.setContentsMargins(6, 2, 6, 4)
         left.setSpacing(4)
         top = QHBoxLayout()
-        top.addWidget(heading("Source maps"))
+        top.addWidget(heading("Sources"))
         top.addStretch()
-        folder = QPushButton("Import folder…")
-        folder.clicked.connect(self.import_folder)
-        top.addWidget(folder)
+        add = QPushButton("Add material…")
+        add.clicked.connect(self.add_material)
+        top.addWidget(add)
         left.addLayout(top)
+        remove = QPushButton("−")
+        remove.setToolTip("Remove the highlighted source from this list")
+        remove.setFixedWidth(26)
+        remove.clicked.connect(self.remove_source)
+        top.addWidget(remove)
+        self.sources = QListWidget()
+        self.sources.setIconSize(QSize(26, 26))
+        self.sources.setMinimumHeight(44)
+        self.sources.setToolTip(
+            "Check materials to train. Highlight a row to inspect or edit its maps."
+        )
+        self.sources.hide()
+        left.addWidget(self.sources)
+        self.sources.currentItemChanged.connect(self.display_source)
+        self.sources.itemChanged.connect(self.update_train_label)
+        self.sources.itemDoubleClicked.connect(self.open_source_result)
+        self.updating_source = False
+        self.remaining_sources = []
+        self.active_source = None
         self.paths = []
         self.thumbs = []
         fields = QGridLayout()
@@ -163,7 +208,14 @@ class Studio(QMainWindow):
             fields.addWidget(tile, i, 0)
             fields.addWidget(QLabel(name), i, 1)
             fields.addWidget(edit, i, 2)
-        left.addSpacing(5)
+            choose = QPushButton("…")
+            choose.setFixedWidth(24)
+            choose.setToolTip(f"Choose {name} PNG")
+            choose.clicked.connect(lambda _, e=edit: self.browse_map(e))
+            fields.addWidget(choose, i, 3)
+        left = sidebar_panel()
+        left.setContentsMargins(6, 2, 6, 4)
+        left.setSpacing(4)
         left.addWidget(heading("Training"))
         self.profile = QComboBox()
         self.profile.addItems(PROFILES)
@@ -195,6 +247,9 @@ class Studio(QMainWindow):
         self.fused = QCheckBox("Fused Adam")
         self.compile_model = QCheckBox("Compile forward with PyTorch")
         form.addRow(self.fused)
+        self.compile_model.setToolTip(
+            "Uses Inductor when available. GPUs without Triton use AOT Autograd with eager kernels."
+        )
         form.addRow(self.compile_model)
         self.rates = {}
         for flag, label, rate in (
@@ -215,24 +270,25 @@ class Studio(QMainWindow):
         self.apply_profile(self.profile.currentText())
         self.train_button = QPushButton("Train material")
         self.train_button.setObjectName("train")
-        self.train_button.clicked.connect(self.start_training)
+        self.train_button.clicked.connect(self.train_selection)
         left.addWidget(self.train_button)
         left.addStretch()
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self.settings_box)
-        scroll.setMinimumWidth(242)
-        scroll.setMaximumWidth(285)
-        columns.addWidget(scroll, 1)
-
-        center = QVBoxLayout()
+        self.settings_box.setMinimumWidth(200)
+        self.settings_box.setSizes([260, 250])
+        self.workspace = panel_splitter(Qt.Vertical)
+        self.columns.addWidget(self.workspace)
+        self.columns.setStretchFactor(1, 1)
+        self.columns.setSizes([244, 730])
+        preview_panel = QWidget()
+        self.workspace.addWidget(preview_panel)
+        center = QVBoxLayout(preview_panel)
+        center.setContentsMargins(2, 0, 0, 1)
         center.setSpacing(4)
-        columns.addLayout(center, 3)
         header = QHBoxLayout()
         header.addWidget(heading("Material preview"))
         header.addStretch()
         self.channel = QComboBox()
-        self.channel.addItems(["Albedo", "Normal", "AO", "Roughness", "Metallic"])
+        self.channel.addItems(["Overview", *CHANNELS])
         header.addWidget(self.channel)
         self.vk = QPushButton("Launch Vulkan")
         self.vk.setEnabled(False)
@@ -248,12 +304,53 @@ class Studio(QMainWindow):
         self.canvas.setStyleSheet("background:#090a0c;color:#a7adb4;")
         self.canvas.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
         center.addWidget(self.canvas, 3)
+        self.overview = QWidget()
+        matrix = QGridLayout(self.overview)
+        matrix.setContentsMargins(0, 0, 0, 0)
+        matrix.setSpacing(2)
+        self.overview_source = heading("Source")
+        matrix.addWidget(self.overview_source, 0, 1)
+        for column, title in enumerate(("Decoded", "Absolute error", "Latents"), 2):
+            matrix.addWidget(heading(title), 0, column)
+        self.overview_tiles = []
+        self.overview_names = []
+        for row, name in enumerate(("Albedo", "Normal", "ORM"), 1):
+            row_label = QLabel(name)
+            self.overview_names.append(row_label)
+            matrix.addWidget(row_label, row, 0)
+            cells = []
+            for column in (1, 2, 3):
+                cell = QLabel()
+                cell.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+                cell.setMinimumSize(48, 48)
+                cell.setAlignment(Qt.AlignCenter)
+                cell.setStyleSheet("background:#08090b")
+                matrix.addWidget(cell, row, column)
+                cells.append(cell)
+            self.overview_tiles.append(cells)
+            matrix.setRowStretch(row, 1)
+        features = QGridLayout()
+        features.setContentsMargins(0, 0, 0, 0)
+        features.setSpacing(2)
+        self.overview_latents = []
+        for i in range(4):
+            tile = QLabel()
+            tile.setAlignment(Qt.AlignCenter)
+            tile.setMinimumSize(32, 32)
+            tile.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+            tile.setToolTip(f"Feature {i}, decoded mip 0")
+            features.addWidget(tile, i // 2, i % 2)
+            self.overview_latents.append(tile)
+        matrix.addLayout(features, 1, 4, 3, 1)
+        for column in range(1, 5):
+            matrix.setColumnStretch(column, 1)
+        center.addWidget(self.overview, 4)
+        self.overview.hide()
         self.comparison = QWidget()
         grid = QGridLayout(self.comparison)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setRowStretch(1, 1)
         self.comparison.setMinimumHeight(152)
-        self.comparison.setMaximumHeight(198)
         grid.setHorizontalSpacing(4)
         grid.setVerticalSpacing(1)
         self.tiles = []
@@ -291,8 +388,14 @@ class Studio(QMainWindow):
         self.caption = QLabel()
         self.caption.setWordWrap(True)
         center.addWidget(self.caption)
+        loss_panel = QWidget()
+        self.workspace.addWidget(loss_panel)
+        center = QVBoxLayout(loss_panel)
+        center.setContentsMargins(2, 0, 0, 1)
+        center.setSpacing(3)
         center.addWidget(heading("Training loss"))
         self.graph = LossGraph()
+        self.graph.setMinimumHeight(92)
         center.addWidget(self.graph, 1)
         center.addWidget(
             QLabel(
@@ -315,12 +418,13 @@ class Studio(QMainWindow):
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         self.log.setMaximumBlockCount(500)
-        self.log.setFixedHeight(84)
-        center.addWidget(self.log)
+        self.log.setMinimumHeight(40)
+        self.workspace.addWidget(self.log)
         self.log.hide()
         log_toggle.toggled.connect(self.log.setVisible)
-        self.data_panel = QVBoxLayout()
-        columns.addLayout(self.data_panel)
+        self.workspace.setSizes([345, 180, 80])
+        self.workspace.splitterMoved.connect(lambda *_: self.show_result())
+        self.columns.splitterMoved.connect(lambda *_: self.show_result())
 
         self.render_cache = tempfile.TemporaryDirectory()
         self.result_dir = None
@@ -361,29 +465,152 @@ class Studio(QMainWindow):
         self.thumbs[index].setIcon(QIcon(pix))
         field.setToolTip(field.text())
 
+        item = self.sources.currentItem()
+        if item and not self.updating_source:
+            paths = [f.text() for f in self.paths]
+            item.setData(Qt.UserRole, paths)
+            item.setIcon(self.thumbs[0].icon())
+            item.setData(Qt.UserRole + 1, None)
+            item.setText(item.data(Qt.UserRole + 2))
+
+    def add_source(self, name, paths):
+        item = QListWidgetItem()
+        item.setText(name)
+        item.setData(Qt.UserRole, list(paths))
+        item.setData(Qt.UserRole + 2, name)
+        item.setCheckState(Qt.Checked)
+        item.setToolTip("\n".join(paths))
+        self.sources.addItem(item)
+        self.sources.show()
+        self.sources.setCurrentItem(item)
+        self.update_train_label()
+
+    def display_source(self, item, previous=None):
+        self.updating_source = True
+        try:
+            paths = item.data(Qt.UserRole) if item else [""] * len(CHANNELS)
+            for field, path in zip(self.paths, paths):
+                field.setText(path)
+            if item:
+                item.setIcon(self.thumbs[0].icon())
+        finally:
+            self.updating_source = False
+
+    def remove_source(self):
+        row = self.sources.currentRow()
+        if row >= 0:
+            self.sources.takeItem(row)
+            self.sources.setVisible(bool(self.sources.count()))
+            self.update_train_label()
+
+    def open_source_result(self, item):
+        result = item.data(Qt.UserRole + 1)
+        if result:
+            self.load_export(Path(result))
+
+    def checked_sources(self):
+        return [
+            self.sources.item(i)
+            for i in range(self.sources.count())
+            if self.sources.item(i).checkState() == Qt.Checked
+        ]
+
+    def update_train_label(self, *args):
+        count = len(self.checked_sources())
+        self.train_button.setText(
+            f"Train {count} materials" if count > 1 else "Train material"
+        )
+        self.train_button.setEnabled(bool(count) or self.sources.count() == 0)
+
+    def train_selection(self):
+        self.remaining_sources = self.checked_sources()
+        for item in self.remaining_sources:
+            if not all(Path(p).is_file() for p in item.data(Qt.UserRole)):
+                self.sources.setCurrentItem(item)
+                QMessageBox.warning(
+                    self, "Material maps", "Select all five maps for this material."
+                )
+                self.remaining_sources.clear()
+                return
+        if self.remaining_sources:
+            self.start_next_source()
+        else:
+            self.start_training()
+
+    def start_next_source(self):
+        self.active_source = self.remaining_sources.pop(0)
+        self.sources.setCurrentItem(self.active_source)
+        if not self.start_training():
+            self.active_source = None
+            self.remaining_sources.clear()
+        else:
+            self.active_source.setText(
+                f"{self.active_source.data(Qt.UserRole + 2)} · Training"
+            )
+
+    def finish_source(self, status):
+        if self.active_source is None:
+            return
+        item = self.active_source
+        self.active_source = None
+        item.setText(f"{item.data(Qt.UserRole + 2)} · {status}")
+        if status == "Done":
+            item.setData(Qt.UserRole + 1, str(self.run / "export"))
+        if self.remaining_sources:
+            self.start_next_source()
+
     def browse_map(self, edit):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select texture",
-            "",
-            "Images (*.png *.jpg *.jpeg *.tga *.bmp *.tif *.tiff)",
+            f"Choose {CHANNELS[self.paths.index(edit)]} texture",
+            str(Path(edit.text()).parent) if edit.text() else "",
+            "PNG textures (*.png);;Other images (*.jpg *.jpeg *.tga *.bmp *.tif *.tiff)",
         )
         if path:
             edit.setText(path)
             self.prepare_analysis()
 
-    def import_folder(self):
-        folder = QFileDialog.getExistingDirectory(
-            self, "Select folder containing named PBR maps"
+    def add_material(self):
+        name, accepted = QInputDialog.getText(self, "Add material", "Material name")
+        if not accepted or not name.strip():
+            return
+        # Adopt any loose maps already entered for the first named material.
+        paths = (
+            [f.text() for f in self.paths]
+            if not self.sources.count()
+            else [""] * len(CHANNELS)
         )
-        if folder:
-            self.set_folder(Path(folder))
-            self.prepare_analysis()
+        self.add_source(name.strip(), paths)
+        self.paths[0].setFocus()
 
     def set_folder(self, folder):
-        for name, field in zip(CHANNELS, self.paths):
-            path = folder / (name.lower() + ".png")
-            field.setText(str(path) if path.is_file() else "")
+        if (folder / "maps").is_dir():
+            folder = folder / "maps"
+        paths = [str((folder / (name.lower() + ".png")).resolve()) for name in CHANNELS]
+        name = (folder.parent if folder.name == "maps" else folder).name
+        if not any(Path(p).is_file() for p in paths):
+            QMessageBox.warning(
+                self, "Import source", "Choose a folder with named PBR maps."
+            )
+            return
+        paths = [p if Path(p).is_file() else "" for p in paths]
+        if not self.sources.count() and any(f.text() for f in self.paths):
+            self.add_source(self.material_name(), [f.text() for f in self.paths])
+        for i in range(self.sources.count()):
+            item = self.sources.item(i)
+            if item.data(Qt.UserRole) == paths:
+                self.sources.setCurrentItem(item)
+                return
+        self.add_source(name, paths)
+
+    def material_name(self):
+        item = self.sources.currentItem()
+        if item:
+            return item.data(Qt.UserRole + 2)
+        folder = Path(self.paths[0].text()).parent
+        return (
+            folder.parent if folder.name.lower() == "maps" else folder
+        ).name or "material"
 
     def start_training(self):
         files = [Path(field.text()) for field in self.paths]
@@ -424,12 +651,17 @@ class Studio(QMainWindow):
             self.batch.value(),
             self.device.currentText(),
         )
+        output_name = (
+            re.sub(r"[^\w .-]+", "_", self.material_name()).strip(" .")[:72]
+            or "material"
+        )
         parent = ROOT / "runs/studio"
         try:
             parent.mkdir(parents=True, exist_ok=True)
             self.run = Path(
                 tempfile.mkdtemp(
-                    prefix=datetime.now().strftime("%Y%m%d-%H%M%S-"), dir=parent
+                    prefix=f"{output_name}-{datetime.now():%Y%m%d-%H%M%S}-",
+                    dir=parent,
                 )
             )
         except OSError as error:
@@ -459,6 +691,8 @@ class Studio(QMainWindow):
                 str(self.run / "reference.pt"),
             ],
         )
+
+        return True
 
     def launch_worker(self, stage, args):
         self.stage = stage
@@ -491,6 +725,7 @@ class Studio(QMainWindow):
             self.train_button.setEnabled(True)
             self.settings_box.setEnabled(True)
             self.stop_button.setEnabled(False)
+            self.finish_source("Failed")
 
     def stop_training(self):
         if (
@@ -498,7 +733,7 @@ class Studio(QMainWindow):
             and QMessageBox.question(
                 self,
                 "Stop training",
-                "Stop this job? Completed checkpoints stay in the training folder.",
+                "Stop training the selection? Completed checkpoints stay in their material folders.",
             )
             == QMessageBox.Yes
         ):
@@ -558,6 +793,8 @@ class Studio(QMainWindow):
         self.settings_box.setEnabled(True)
         self.stop_button.setEnabled(False)
         if self.stage == "stopped":
+            self.remaining_sources.clear()
+            self.finish_source("Stopped")
             self.status.setText(f"Training stopped · {self.run}")
             return
         if code:
@@ -566,7 +803,9 @@ class Studio(QMainWindow):
             )
         else:
             self.status.setText(f"Export ready · {self.run.name}")
-            self.load_export(self.run / "export")
+            if not self.remaining_sources:
+                self.load_export(self.run / "export")
+        self.finish_source("Failed" if code else "Done")
 
     def open_export(self):
         folder = QFileDialog.getExistingDirectory(
@@ -642,6 +881,7 @@ class Studio(QMainWindow):
         self.model_label.setText(f"   {name}")
         self.result_dir = None
         self.summary = None
+        self.overview.hide()
         self.comparison.hide()
         self.latent_row.hide()
         self.canvas.show()
@@ -660,6 +900,7 @@ class Studio(QMainWindow):
         self.stop_process(self.images)
         self.result_dir = Path(tempfile.mkdtemp(dir=self.render_cache.name))
         self.summary = None
+        self.overview.hide()
         self.comparison.hide()
         self.latent_row.hide()
         self.canvas.show()
@@ -698,8 +939,6 @@ class Studio(QMainWindow):
             return
         self.summary = json.loads((self.result_dir / "summary.json").read_text())
         self.canvas.hide()
-        self.comparison.show()
-        self.latent_row.show()
         for i, label in enumerate(self.latent_tiles):
             label.setPixmap(
                 QPixmap(str(self.result_dir / f"latent-{i}.png")).scaled(
@@ -711,7 +950,47 @@ class Studio(QMainWindow):
     def show_result(self, *args):
         if not getattr(self, "summary", None):
             return
-        i = self.channel.currentIndex()
+        overview = self.channel.currentIndex() == 0
+        self.overview.setVisible(overview)
+        self.comparison.setVisible(not overview)
+        self.latent_row.setVisible(not overview)
+        if overview:
+            self.overview_source.setText(self.summary["source"] or "Source")
+            stats = self.summary["channels"]
+            for row, (name, idx) in enumerate(
+                zip(("Albedo", "Normal", "ORM"), (0, 1, 5))
+            ):
+                self.overview_names[row].setText(
+                    name + (f"\n{stats[idx]['mse']:.4g}" if stats else "")
+                )
+                for cell, key in zip(
+                    self.overview_tiles[row], ("source", "decoded", "error")
+                ):
+                    pix = QPixmap(str(self.result_dir / f"{key}-{idx}.png"))
+                    if pix.isNull():
+                        cell.setText("—")
+                    else:
+                        cell.setPixmap(
+                            pix.scaled(
+                                cell.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+                            )
+                        )
+                    if key == "error" and stats:
+                        cell.setToolTip(
+                            f"Absolute error · scale 0 to {stats[idx]['peak']:.4g}"
+                        )
+            for idx, cell in enumerate(self.overview_latents):
+                pix = QPixmap(str(self.result_dir / f"latent-{idx}.png"))
+                cell.setPixmap(
+                    pix.scaled(cell.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                )
+            self.caption.setText(
+                "MSE per row · error images scaled independently"
+                if stats
+                else "Load matching source maps to compare."
+            )
+            return
+        i = self.channel.currentIndex() - 1
         for label, stem in zip(self.tiles, ("source", "decoded", "error")):
             file = self.result_dir / f"{stem}-{i}.png"
             if file.exists():
@@ -765,8 +1044,15 @@ class Studio(QMainWindow):
         if enabled and self.files:
             try:
                 self.inspector = ModelData(self.files[0], self.files[1], self)
-                self.inspector.setMaximumWidth(270)
-                self.data_panel.addWidget(self.inspector)
+                self.inspector.setMinimumWidth(155)
+                self.columns.addWidget(self.inspector)
+                self.columns.setSizes(
+                    [
+                        self.settings_box.width(),
+                        max(295, self.workspace.width() - 210),
+                        210,
+                    ]
+                )
                 self.inspector.show()
             except (OSError, ValueError, struct.error) as error:
                 self.caption.setText(str(error))
@@ -828,21 +1114,28 @@ class Studio(QMainWindow):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--viewer", type=Path, default=ROOT / "build/Release/vk_neural_demo.exe"
+        "--viewer",
+        type=Path,
+        default=ROOT
+        / (
+            "build/Release/vk_neural_demo.exe"
+            if os.name == "nt"
+            else "build/vk_neural_demo"
+        ),
     )
     parser.add_argument("--export-dir", type=Path)
     parser.add_argument(
         "--maps",
         type=Path,
-        help="Preload five source thumbnails from a named map folder",
+        action="append",
+        default=[],
+        help="Add a source material folder (repeat for multiple materials)",
     )
     parser.add_argument("--weights", type=Path)
     parser.add_argument(
         "--latents", type=Path, nargs=4, metavar=("DDS0", "DDS1", "DDS2", "DDS3")
     )
     args = parser.parse_args()
-    if os.name != "nt":
-        parser.error("The Qt studio currently targets Windows")
     if bool(args.weights) != bool(args.latents) or (args.weights and args.export_dir):
         parser.error(
             "Use either --export-dir or --weights FILE --latents DDS0 DDS1 DDS2 DDS3"
@@ -850,8 +1143,8 @@ def main():
     app = QApplication(sys.argv[:1])
     app.setStyle("Fusion")
     window = Studio(args.viewer.resolve())
-    if args.maps:
-        window.set_folder(args.maps.resolve())
+    for folder in args.maps:
+        window.set_folder(folder.resolve())
     window.show()
     if args.weights:
         QTimer.singleShot(
