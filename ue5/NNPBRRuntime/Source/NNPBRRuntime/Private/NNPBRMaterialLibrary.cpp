@@ -1,5 +1,5 @@
 #include "NNPBRMaterialLibrary.h"
-#include "NNPBRFormat.h"
+#include "NNPBRExport.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "Engine/Texture2D.h"
@@ -16,12 +16,6 @@ THIRD_PARTY_INCLUDES_END
 
 namespace
 {
-struct FLayer
-{
-    TArray<uint8> Bytes;
-    NNPBR::Pyramid Layout{};
-};
-
 bool StringEquals(const FJsonObject &Obj, const TCHAR *Key, const TCHAR *Expected)
 {
     FString Value;
@@ -64,11 +58,11 @@ bool LoadVerified(const FString &Dir, const FString &Name, const FJsonObject &Ha
     return true;
 }
 
-bool CheckInventory(const TArray<TSharedPtr<FJsonValue>> &Inventory, const FLayer (&Layers)[4])
+bool CheckInventory(const TArray<TSharedPtr<FJsonValue>> &Inventory, const FNNPBRLayer (&Layers)[4])
 {
     bool Seen[4][15]{};
     int32 Count = 0;
-    for (const FLayer &Layer : Layers)
+    for (const FNNPBRLayer &Layer : Layers)
         Count += Layer.Layout.Count;
     if (Count != Inventory.Num())
         return false;
@@ -95,7 +89,9 @@ bool CheckInventory(const TArray<TSharedPtr<FJsonValue>> &Inventory, const FLaye
     return true;
 }
 
-UTexture2D *Upload(UObject *Owner, const FLayer &Layer)
+} // namespace
+
+UTexture2D *NNPBR::Upload(UObject *Owner, const FNNPBRLayer &Layer)
 {
     UTexture2D *Texture = NewObject<UTexture2D>(Owner, NAME_None, RF_Transient);
     auto *Data = new FTexturePlatformData();
@@ -122,26 +118,10 @@ UTexture2D *Upload(UObject *Owner, const FLayer &Layer)
     Texture->UpdateResource();
     return Texture;
 }
-} // namespace
 
-UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *WorldContextObject,
-                                                                    const FString &ExportDirectory,
-                                                                    UMaterialInterface *ParentMaterial,
-                                                                    FString &Error)
+bool NNPBR::ReadExport(const FString& Dir, FNNPBRExport& Out, FString& Error)
 {
     Error.Reset();
-    if (!IsInGameThread() || !IsValid(WorldContextObject) || ExportDirectory.IsEmpty())
-    {
-        Error = TEXT("Supply an export directory and world object on the game thread.");
-        return nullptr;
-    }
-    if (!GPixelFormats[PF_BC6H].Supported)
-    {
-        Error = TEXT("The active rendering device does not support BC6H.");
-        return nullptr;
-    }
-    const FString Dir =
-        FPaths::IsRelative(ExportDirectory) ? FPaths::ProjectContentDir() / ExportDirectory : ExportDirectory;
     FString Text;
     TSharedPtr<FJsonObject> Meta;
     const FString MetaPath = Dir / TEXT("metadata.json");
@@ -150,7 +130,7 @@ UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *Wor
         !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Meta) || !Meta.IsValid())
     {
         Error = TEXT("Cannot read export metadata: ") + MetaPath;
-        return nullptr;
+        return false;
     }
     const TSharedPtr<FJsonObject> *Decoder;
     const TSharedPtr<FJsonObject> *Hashes;
@@ -174,24 +154,24 @@ UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *Wor
         !Meta->TryGetArrayField(TEXT("latent_files"), Inventory))
     {
         Error = TEXT("Unsupported or incomplete NN-PBR v5 metadata.");
-        return nullptr;
+        return false;
     }
     TArray<uint8> Blob;
-    std::array<float, 344> Weights;
+    auto& Weights = Out.Weights;
     if (!LoadVerified(Dir, TEXT("decoder_fp16.bin"), **Hashes, Blob, Error))
-        return nullptr;
+        return false;
     if (!NNPBR::DecodeWeights(Blob.GetData(), Blob.Num(), Weights))
     {
         Error = TEXT("Expected 344 finite little-endian FP16 decoder values.");
-        return nullptr;
+        return false;
     }
-    FLayer Layers[4];
+    auto& Layers = Out.Layers;
     for (int32 I = 0; I < 4; ++I)
     {
-        FLayer &Layer = Layers[I];
+        FNNPBRLayer &Layer = Layers[I];
         const FString File = FString::Printf(TEXT("latent_%02d.bc6.dds"), I);
         if (!LoadVerified(Dir, File, **Hashes, Layer.Bytes, Error))
-            return nullptr;
+            return false;
         double Resolution, Bias;
         if (!NNPBR::ParseDDS(Layer.Bytes.GetData(), Layer.Bytes.Num(), Layer.Layout) ||
             !(*Resolutions)[I]->TryGetNumber(Resolution) || Resolution != Layer.Layout.Levels[0].Width ||
@@ -200,14 +180,19 @@ UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *Wor
                                   1e-6))
         {
             Error = TEXT("Invalid DDS format, mip payload or metadata: ") + File;
-            return nullptr;
+            return false;
         }
     }
     if (!CheckInventory(*Inventory, Layers))
     {
         Error = TEXT("DDS mip inventory disagrees with metadata.");
-        return nullptr;
+        return false;
     }
+    return true;
+}
+
+UMaterialInterface* NNPBR::ResolveParent(UMaterialInterface* ParentMaterial, FString& Error)
+{
     if (!ParentMaterial)
         ParentMaterial =
             LoadObject<UMaterialInterface>(nullptr, TEXT("/NNPBRRuntime/Materials/M_NNPBR.M_NNPBR"));
@@ -237,6 +222,32 @@ UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *Wor
             return nullptr;
         }
     }
+    return ParentMaterial;
+}
+
+UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *WorldContextObject,
+                                                                    const FString &ExportDirectory,
+                                                                    UMaterialInterface *ParentMaterial,
+                                                                    FString &Error)
+{
+    Error.Reset();
+    if (!IsInGameThread() || !IsValid(WorldContextObject) || ExportDirectory.IsEmpty())
+    {
+        Error = TEXT("Supply an export directory and world object on the game thread.");
+        return nullptr;
+    }
+    if (!GPixelFormats[PF_BC6H].Supported)
+    {
+        Error = TEXT("The active rendering device does not support BC6H.");
+        return nullptr;
+    }
+    const FString Dir =
+        FPaths::IsRelative(ExportDirectory) ? FPaths::ProjectContentDir() / ExportDirectory : ExportDirectory;
+    FNNPBRExport Export;
+    if (!NNPBR::ReadExport(Dir, Export, Error)) return nullptr;
+    ParentMaterial = NNPBR::ResolveParent(ParentMaterial, Error);
+    if (!ParentMaterial) return nullptr;
+    const auto& Weights = Export.Weights;
     UMaterialInstanceDynamic *MID = UMaterialInstanceDynamic::Create(ParentMaterial, WorldContextObject);
     if (!MID)
     {
@@ -244,7 +255,7 @@ UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *Wor
         return nullptr;
     }
     for (int32 I = 0; I < 4; ++I)
-        MID->SetTextureParameterValue(FName(*FString::Printf(TEXT("NNLatent%d"), I)), Upload(MID, Layers[I]));
+        MID->SetTextureParameterValue(FName(*FString::Printf(TEXT("NNLatent%d"), I)), NNPBR::Upload(MID, Export.Layers[I]));
     for (int32 I = 0; I < 86; ++I)
         MID->SetVectorParameterValue(
             FName(*FString::Printf(TEXT("NNW%02d"), I)),
