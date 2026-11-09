@@ -119,7 +119,7 @@ UTexture2D *NNPBR::Upload(UObject *Owner, const FNNPBRLayer &Layer)
     return Texture;
 }
 
-bool NNPBR::ReadExport(const FString& Dir, FNNPBRExport& Out, FString& Error)
+bool NNPBR::ReadExport(const FString &Dir, FNNPBRExport &Out, FString &Error)
 {
     Error.Reset();
     FString Text;
@@ -157,7 +157,7 @@ bool NNPBR::ReadExport(const FString& Dir, FNNPBRExport& Out, FString& Error)
         return false;
     }
     TArray<uint8> Blob;
-    auto& Weights = Out.Weights;
+    auto &Weights = Out.Weights;
     if (!LoadVerified(Dir, TEXT("decoder_fp16.bin"), **Hashes, Blob, Error))
         return false;
     if (!NNPBR::DecodeWeights(Blob.GetData(), Blob.Num(), Weights))
@@ -165,7 +165,7 @@ bool NNPBR::ReadExport(const FString& Dir, FNNPBRExport& Out, FString& Error)
         Error = TEXT("Expected 344 finite little-endian FP16 decoder values.");
         return false;
     }
-    auto& Layers = Out.Layers;
+    auto &Layers = Out.Layers;
     for (int32 I = 0; I < 4; ++I)
     {
         FNNPBRLayer &Layer = Layers[I];
@@ -191,7 +191,7 @@ bool NNPBR::ReadExport(const FString& Dir, FNNPBRExport& Out, FString& Error)
     return true;
 }
 
-UMaterialInterface* NNPBR::ResolveParent(UMaterialInterface* ParentMaterial, FString& Error)
+UMaterialInterface *NNPBR::ResolveParent(UMaterialInterface *ParentMaterial, FString &Error)
 {
     if (!ParentMaterial)
         ParentMaterial =
@@ -244,10 +244,12 @@ UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *Wor
     const FString Dir =
         FPaths::IsRelative(ExportDirectory) ? FPaths::ProjectContentDir() / ExportDirectory : ExportDirectory;
     FNNPBRExport Export;
-    if (!NNPBR::ReadExport(Dir, Export, Error)) return nullptr;
+    if (!NNPBR::ReadExport(Dir, Export, Error))
+        return nullptr;
     ParentMaterial = NNPBR::ResolveParent(ParentMaterial, Error);
-    if (!ParentMaterial) return nullptr;
-    const auto& Weights = Export.Weights;
+    if (!ParentMaterial)
+        return nullptr;
+    const auto &Weights = Export.Weights;
     UMaterialInstanceDynamic *MID = UMaterialInstanceDynamic::Create(ParentMaterial, WorldContextObject);
     if (!MID)
     {
@@ -255,7 +257,8 @@ UMaterialInstanceDynamic *UNNPBRMaterialLibrary::LoadNeuralMaterial(UObject *Wor
         return nullptr;
     }
     for (int32 I = 0; I < 4; ++I)
-        MID->SetTextureParameterValue(FName(*FString::Printf(TEXT("NNLatent%d"), I)), NNPBR::Upload(MID, Export.Layers[I]));
+        MID->SetTextureParameterValue(FName(*FString::Printf(TEXT("NNLatent%d"), I)),
+                                      NNPBR::Upload(MID, Export.Layers[I]));
     for (int32 I = 0; I < 86; ++I)
         MID->SetVectorParameterValue(
             FName(*FString::Printf(TEXT("NNW%02d"), I)),

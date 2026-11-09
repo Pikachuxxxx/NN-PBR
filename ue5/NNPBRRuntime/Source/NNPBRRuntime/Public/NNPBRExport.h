@@ -20,7 +20,7 @@ struct FNNPBRExport
 
 namespace NNPBR
 {
-NNPBRRUNTIME_API bool ReadExport(const FString& Directory, FNNPBRExport& Out, FString& Error);
-NNPBRRUNTIME_API UMaterialInterface* ResolveParent(UMaterialInterface* Parent, FString& Error);
-NNPBRRUNTIME_API UTexture2D* Upload(UObject* Owner, const FNNPBRLayer& Layer);
-}
+NNPBRRUNTIME_API bool ReadExport(const FString &Directory, FNNPBRExport &Out, FString &Error);
+NNPBRRUNTIME_API UMaterialInterface *ResolveParent(UMaterialInterface *Parent, FString &Error);
+NNPBRRUNTIME_API UTexture2D *Upload(UObject *Owner, const FNNPBRLayer &Layer);
+} // namespace NNPBR
