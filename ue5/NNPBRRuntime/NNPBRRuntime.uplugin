@@ -1,0 +1,14 @@
+{
+    "FileVersion": 3,
+    "Version": 1,
+    "VersionName": "0.1",
+    "FriendlyName": "NN-PBR Runtime",
+    "Description": "Load NN-PBR v5 materials at runtime.",
+    "Category": "Rendering",
+    "CanContainContent": true,
+    "SupportedTargetPlatforms": ["Win64", "Linux"],
+    "Modules": [
+        {"Name":"NNPBRRuntime","Type":"Runtime","LoadingPhase":"PostConfigInit"},
+        {"Name":"NNPBRRuntimeEditor","Type":"Editor","LoadingPhase":"Default"}
+    ]
+}

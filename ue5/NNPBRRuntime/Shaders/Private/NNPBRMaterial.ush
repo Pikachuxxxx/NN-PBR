@@ -1,0 +1,41 @@
+#ifndef NNPBR_MATERIAL_USH
+#define NNPBR_MATERIAL_USH
+
+// w contains the 344 FP16 values promoted to material uniforms in file order.
+// Latents arrive as linear, hardware-filtered RGB. Texture size already sets LOD.
+float3 NNPBRDecode(float3 l0, float3 l1, float3 l2, float3 l3,
+                   float4 w[86], float normalYSign, out float3 normalTS, out float3 orm)
+{
+    float x[12] = {l0.x,l0.y,l0.z,l1.x,l1.y,l1.z,l2.x,l2.y,l2.z,l3.x,l3.y,l3.z};
+    float h[16];
+    [unroll] for (int j=0; j<16; ++j)
+    {
+        float s = w[(192+j)/4][(192+j)%4];
+        [unroll] for (int i=0; i<12; ++i)
+        {
+            int k = j*12+i;
+            s += w[k/4][k%4]*x[i];
+        }
+        h[j] = max(s,0.0);
+    }
+    float y[8];
+    [unroll] for (int j=0; j<8; ++j)
+    {
+        float s = w[(336+j)/4][(336+j)%4];
+        [unroll] for (int i=0; i<16; ++i)
+        {
+            int k = 208+j*16+i;
+            s += w[k/4][k%4]*h[i];
+        }
+        y[j] = s;
+    }
+    float2 xy = float2(y[3],y[4]);
+    normalTS = normalize(float3(xy.x,xy.y*normalYSign,sqrt(saturate(1.0-dot(xy,xy)))));
+    orm = saturate(float3(y[5],y[6],y[7])*0.5+0.5);
+    float3 c = saturate(float3(y[0],y[1],y[2]));
+    float3 hi = pow((c+0.055)/1.055,2.4);
+    return float3(c.r<=0.04045 ? c.r/12.92 : hi.r,
+                  c.g<=0.04045 ? c.g/12.92 : hi.g,
+                  c.b<=0.04045 ? c.b/12.92 : hi.b);
+}
+#endif
