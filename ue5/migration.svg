@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 193" role="img" aria-label="Project materials are scanned, trained and reviewed before applying mesh slot changes that can be restored from a manifest">
+<rect width="840" height="193" rx="10" fill="#171a20"/>
+<g font-family="Segoe UI, sans-serif" font-size="16" fill="#eaf1ef">
+<text x="24" y="35" fill="#8fccc4" font-weight="bold">PROPOSED UE5 MIGRATION</text>
+<g fill="#29363e"><rect x="24" y="61" width="168" height="63" rx="6"/><rect x="232" y="61" width="154" height="63" rx="6"/><rect x="426" y="61" width="166" height="63" rx="6"/><rect x="632" y="61" width="181" height="63" rx="6"/></g>
+<g text-anchor="middle"><text x="108" y="89">Scan material</text><text x="108" y="110">inputs + usages</text><text x="309" y="89">Train unique</text><text x="309" y="110">PBR sets</text><text x="509" y="89">Compare quality,</text><text x="509" y="110">memory + time</text><text x="723" y="89">Apply reviewed</text><text x="723" y="110">mesh slots</text></g>
+<path d="M199 93h23l-6 -5m6 5-6 5m176 -5h23l-6 -5m6 5-6 5m176 -5h23l-6 -5m6 5-6 5" fill="none" stroke="#8fccc4" stroke-width="2"/>
+<text x="24" y="162" fill="#bcc8cf">Unsupported inputs → manual review</text><text x="534" y="162" fill="#bcc8cf">Saved slot assignments → rollback</text></g></svg>
