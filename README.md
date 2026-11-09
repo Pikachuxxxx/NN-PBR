@@ -2,6 +2,8 @@
 
 PyTorch and Vulkan implementation of [Real-Time Neural Materials using Block-Compressed Features](https://arxiv.org/abs/2311.16121). Each material has four BC6H feature textures and a 688-byte decoder. The fragment shader samples an RGB triplet from each texture and passes the 12 values through a 12 → 16 → 8 MLP to reconstruct albedo RGB, tangent-space normal XY, ambient occlusion, roughness and metallic.
 
+Train in PyTorch or Qt Studio, then use the same export in the Vulkan viewer or the [Unreal Engine 5 runtime plugin](#unreal-engine-5-runtime-plugin).
+
 ## Screenshots
 
 | Red plaid · 2048 × 2048 | Hammered copper · 512 × 512 |
@@ -51,6 +53,20 @@ cmake -S . -B build
 cmake --build build --config Release
 build/Release/vk_neural_demo.exe --export-dir models/hammered-copper-512/export --embedded-hlsl
 ```
+
+## Unreal Engine 5 runtime plugin
+
+`NNPBRRuntime` is a C++ source plugin targeting UE 5.6 and 5.8 on desktop Windows and Linux. It requires a GPU with unsigned BC6H texture support. Each material instance holds four latent textures with their exported mip chains and 344 decoder weights and biases. The material shader samples UV0, decodes the filtered features, and feeds linear base color, tangent-space normal, AO, roughness and metallic into Unreal’s Default Lit shading model.
+
+![Four BC6H textures and FP16 weights feed the Unreal material decoder](ue5/runtime.svg)
+
+**Try hammered copper**
+
+1. Copy [NNPBRRuntime](ue5/NNPBRRuntime) into your C++ project’s `Plugins/` directory. Enable the plugin, build the editor target, then use the `NNPBRCreateMaterial` commandlet once to generate the master material.
+2. Copy `metadata.json`, `decoder_fp16.bin` and the four DDS files from the [copper export](models/hammered-copper-512/export) into `Content/NNPBRExports/Copper/`. Keep these as raw files.
+3. In a mesh actor’s **BeginPlay**, call **Load Neural Material** with `NNPBRExports/Copper` and leave **Parent Material** empty. Pass the returned instance to **Set Material** on mesh element 0. Loading is synchronous. Meshes using the same copper export can share that instance.
+
+**Verification.** Seven standalone tests passed on Windows, including decoder comparisons on the RX 9070 using the three bundled models. The first Unreal editor build, mesh render and packaged-game test are pending for both engine versions. [UE build commands and packaging settings](ue5/README.md).
 
 ## Qt material editor
 
@@ -158,7 +174,3 @@ python -m unittest discover -s tests -v
 ```
 
 Set `BCDEC_ORACLE` to the absolute path of the built `bcdec_oracle` library before the Python tests to include the independent decoder comparison. [Codec verification and RX 9070 readback](docs/tutorial.html#fixes).
-
-## Unreal Engine
-
-The runtime plugin loads exported BC6H latents and decoder weights into a mesh material. [UE 5.6 setup and packaging](ue5/README.md).
