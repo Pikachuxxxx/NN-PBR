@@ -87,6 +87,11 @@ target_link_libraries(vk_neural_demo PRIVATE
     glfw
 )
 
+if(WIN32)
+    add_executable(nnpbr_studio_launcher WIN32 EXCLUDE_FROM_ALL packaging/windows/studio_launcher.cpp)
+    set_target_properties(nnpbr_studio_launcher PROPERTIES OUTPUT_NAME "NN-PBR Studio")
+endif()
+
 option(NNPBR_BUILD_CODEC_TESTS "Build the independent BC6 decoder test oracle" OFF)
 if(NNPBR_BUILD_CODEC_TESTS)
     add_library(bcdec_oracle SHARED tests/oracle/bcdec_wrapper.c)

@@ -63,6 +63,8 @@ python -m pip install PySide6-Essentials
 python -m nnpbr.studio
 ```
 
+**Double-clickable Windows build.** From a Windows virtual environment with PyTorch, PySide6-Essentials and the project dependencies installed, use `python packaging/windows/build_studio.py`. The default executable is `%LOCALAPPDATA%\NN-PBR Studio\App\NN-PBR Studio.exe`. Copy the whole `App` folder to move it. It includes Python, the GPU runtime from the build environment, the Vulkan viewer and the copper export. Use `--output` with a fresh directory for another build. Training from the packaged app writes to `%LOCALAPPDATA%\NN-PBR Studio\runs`.
+
 The workspace keeps five source thumbnails beside the preset, progress bar and live loss plot. **Advanced settings** exposes feature sizes, mips, phase lengths, learning rates, batch sizes, seed, checkpoint interval and optimizer settings. Training writes to a fresh directory under `runs/studio/`.
 
 Drag the dividers to resize the source list, settings, preview, loss graph, log and optional model inspector. Studio uses Qt Fusion with dark horizontal and vertical scrollbars. **Compile forward** uses PyTorch Inductor by default. On a GPU without Triton it selects `aot_eager`, which captures the graph and executes GPU operations with eager kernels.

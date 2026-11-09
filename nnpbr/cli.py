@@ -598,6 +598,16 @@ def main():
         from dataclasses import asdict
         import hashlib, subprocess, platform
 
+        root = Path(__file__).resolve().parents[1]
+        build_info = root / "build-info.json"
+        if build_info.is_file():
+            provenance = json.loads(build_info.read_text(encoding="utf-8"))
+        else:
+            provenance = {
+                "revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
+                "working_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip()),
+            }
+
         manifest = {
             "config": asdict(cfg),
             "reference_sha256": hashlib.sha256(
@@ -610,16 +620,7 @@ def main():
                 "mips": latent_mips,
                 "reference_resolution": h,
             },
-            "revision": subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], cwd=Path(__file__).parents[1], text=True
-            ).strip(),
-            "working_tree_dirty": bool(
-                subprocess.check_output(
-                    ["git", "status", "--porcelain"],
-                    cwd=Path(__file__).parents[1],
-                    text=True,
-                ).strip()
-            ),
+            **provenance,
         }
         (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
         history = train(model, ref_mips, cfg)
