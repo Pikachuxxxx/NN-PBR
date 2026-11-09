@@ -158,3 +158,7 @@ python -m unittest discover -s tests -v
 ```
 
 Set `BCDEC_ORACLE` to the absolute path of the built `bcdec_oracle` library before the Python tests to include the independent decoder comparison. [Codec verification and RX 9070 readback](docs/tutorial.html#fixes).
+
+## Unreal Engine
+
+The runtime plugin loads exported BC6H latents and decoder weights into a mesh material. [UE 5.6 setup and packaging](ue5/README.md).

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 210" role="img" aria-label="Four BC6H textures sampled at UV0 and 344 weights feed the decoder to supply Unreal material channels">
+<rect width="780" height="210" rx="12" fill="#171a20"/><g font-family="Segoe UI, sans-serif" font-size="16" fill="#eff4fb">
+<text x="24" y="35" font-weight="bold" fill="#8fccc4">EXPORTED MATERIAL</text><text x="24" y="89">4 BC6H textures</text><text x="24" y="114" fill="#b9c5cf">Sample UV0 + mip chain</text><text x="24" y="160">344 FP16 weights</text><text x="24" y="185" fill="#b9c5cf">Load once per material</text>
+<path d="M225 93h30l20 27m-50 37h30l20-28M489 123h38m-9-6 9 6-9 6" fill="none" stroke="#8fccc4" stroke-width="2"/>
+<rect x="278" y="77" width="207" height="90" rx="8" fill="#263840"/><text x="298" y="112">12 → 16 → 8 decoder</text><text x="298" y="142" fill="#b9c5cf">Material pixel shader</text>
+<text x="550" y="35" font-weight="bold" fill="#8fccc4">DEFAULT LIT</text><text x="550" y="90">Linear base color</text><text x="550" y="122">Tangent-space normal</text><text x="550" y="154">AO, roughness, metallic</text></g></svg>
