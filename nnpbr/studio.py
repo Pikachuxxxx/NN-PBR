@@ -657,7 +657,10 @@ class Studio(QMainWindow):
             or "material"
         )
         parent = ROOT / "runs/studio"
-        if (ROOT / "build-info.json").is_file() and os.environ.get("LOCALAPPDATA"):
+        if sys.platform.startswith("linux"):
+            data_home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+            parent = data_home / "nn-pbr-studio/runs"
+        elif (ROOT / "build-info.json").is_file() and os.environ.get("LOCALAPPDATA"):
             parent = Path(os.environ["LOCALAPPDATA"]) / "NN-PBR Studio/runs"
         try:
             parent.mkdir(parents=True, exist_ok=True)
