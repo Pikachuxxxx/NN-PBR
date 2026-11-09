@@ -15,6 +15,7 @@ class NNPBRRUNTIME_API UNNPBRLatentTexture : public UTexture
   public:
     UNNPBRLatentTexture();
     void Initialize(FNNPBRLayer &&Layer);
+    void PostLoad() override;
     FTextureResource *CreateResource() override;
     EMaterialValueType GetMaterialType() const override
     {
@@ -45,6 +46,7 @@ class NNPBRRUNTIME_API UNNPBRLatentTexture : public UTexture
         return MipCount;
     }
 #if WITH_EDITOR
+    TConstArrayView<uint8> GetDDS() const { return DDS; }
     UTexture2D *CreatePreview(UObject *Owner) const;
 #endif
   private:

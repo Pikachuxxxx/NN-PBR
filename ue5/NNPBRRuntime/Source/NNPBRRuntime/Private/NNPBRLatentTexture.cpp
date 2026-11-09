@@ -1,6 +1,7 @@
 #include "NNPBRLatentTexture.h"
 #include "NNPBRExport.h"
 #include "PixelFormat.h"
+#include "Misc/App.h"
 #include "RHICommandList.h"
 #include "RHIStaticStates.h"
 #include "TextureResource.h"
@@ -67,6 +68,12 @@ void UNNPBRLatentTexture::Initialize(FNNPBRLayer &&Layer)
     MipCount = Layer.Layout.Count;
     DDS = MoveTemp(Layer.Bytes);
     UpdateResource();
+}
+void UNNPBRLatentTexture::PostLoad()
+{
+    Super::PostLoad();
+    if (FApp::CanEverRender() && !GetResource())
+        UpdateResource();
 }
 FTextureResource *UNNPBRLatentTexture::CreateResource()
 {

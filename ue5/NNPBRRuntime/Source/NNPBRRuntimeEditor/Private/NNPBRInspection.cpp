@@ -78,7 +78,7 @@ void NNPBREditor::InspectMaterial(UMaterialInstanceConstant *Instance)
             4)[SNew(SVerticalBox) +
                SVerticalBox::Slot().AutoHeight().HAlign(
                    HAlign_Center)[SNew(SBox).WidthOverride(112).HeightOverride(
-                   112)[SNew(SImage).Image_Lambda([Brush] { return Brush.Get(); })]] +
+                   112)[SNew(SImage).Image_Lambda([Brush] { return &Brush.Get(); })]] +
                SVerticalBox::Slot().AutoHeight().HAlign(
                    HAlign_Center)[SNew(STextBlock).Text(FText::FromString(Caption))]];
     }

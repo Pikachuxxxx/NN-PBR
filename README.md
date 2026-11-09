@@ -62,9 +62,9 @@ build/Release/vk_neural_demo.exe --export-dir models/hammered-copper-512/export 
 
 **Try hammered copper**
 
-1. Copy [NNPBRRuntime](ue5/NNPBRRuntime) into your C++ project’s `Plugins/` directory. Enable the plugin, build the editor target, then use the `NNPBRCreateMaterial` commandlet once to generate the master material.
-2. Copy `metadata.json`, `decoder_fp16.bin` and the four DDS files from the [copper export](models/hammered-copper-512/export) into `Content/NNPBRExports/Copper/`. Keep these as raw files.
-3. In a mesh actor’s **BeginPlay**, call **Load Neural Material** with `NNPBRExports/Copper` and leave **Parent Material** empty. Pass the returned instance to **Set Material** on mesh element 0. Loading is synchronous. Meshes using the same copper export can share that instance.
+1. Copy [NNPBRRuntime](ue5/NNPBRRuntime) into a UE 5.6 C++ project’s `Plugins/` folder, enable it and build the editor target.
+2. Choose **Tools → Import NN-PBR Material…**, select the [copper metadata](models/hammered-copper-512/export/metadata.json) and save the material instance. Its Details window previews all four latents and lists each decoder neuron’s weights and bias.
+3. Drag the saved instance from the Content Browser onto a mesh before Play. To inspect it again, select it and choose **Tools → Inspect NN-PBR Material**. For model selection during gameplay, the **Load Neural Material** Blueprint node also accepts a loose export directory.
 
 **Verification.** Seven standalone tests passed on Windows, including decoder comparisons on the RX 9070 using the three bundled models. The first Unreal editor build, mesh render and packaged-game test are pending for both engine versions. [UE build commands and packaging settings](ue5/README.md).
 
