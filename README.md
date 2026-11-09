@@ -75,6 +75,8 @@ Use **Add material…** to enter a name, then choose each PNG with the button be
 
 On native Linux, install a PyTorch build for your GPU and the Vulkan, Qt and GLFW platform dependencies. The standard single-configuration CMake build places the viewer at `build/vk_neural_demo`. Studio also accepts a custom `--viewer` path. Linux GPU performance has yet to be measured for this project. [AMD Radeon Linux compatibility matrix](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/native_linux/native_linux_compatibility.html).
 
+For a Linux applications-menu launcher, use `python packaging/linux/install_studio.py` from the Python environment with PySide6 and PyTorch installed. It builds the viewer and installs a per-user desktop entry for the current checkout and interpreter. Keep both in place while using the launcher.
+
 For Triton on the RX 9070, install the matching PyTorch and Triton wheels from the same ROCm release in the Studio environment. Select **Advanced settings → Compile forward with PyTorch**, or pass `--compile-model` to the trainer. The training log identifies the selected GPU and Triton version when using Inductor. [AMD Linux wheel installation](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/native_linux/install-pytorch.html).
 
 To verify the compiler on that machine before a long bake, compile the warmup and BC6 forward passes and compare their outputs and parameter gradients with eager execution:

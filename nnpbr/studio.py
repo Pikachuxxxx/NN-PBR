@@ -434,6 +434,7 @@ class Studio(QMainWindow):
         self.images.finished.connect(self.result_ready)
         self.channel.currentIndexChanged.connect(self.show_result)
         self.renderer = QProcess(self)
+        self.renderer.setWorkingDirectory(str(ROOT))
         self.renderer.setProcessChannelMode(QProcess.MergedChannels)
         self.renderer.readyReadStandardOutput.connect(self.renderer_output)
         self.renderer.errorOccurred.connect(
