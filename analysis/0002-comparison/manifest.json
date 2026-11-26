@@ -1,0 +1,22 @@
+{
+  "status": "partial",
+  "inputs": [
+    "C:\\Users\\phani\\OneDrive\\Documents\\ChatGPT\\NNPBR\\NN-PBR\\runs\\neuralastc\\0002-fit-ukulele-01",
+    "C:\\Users\\phani\\OneDrive\\Documents\\ChatGPT\\NNPBR\\NN-PBR\\runs\\neuralastc\\0005-inference-ukulele-01",
+    "C:\\Users\\phani\\OneDrive\\Documents\\ChatGPT\\NNPBR\\NN-PBR\\runs\\ubisoft\\0002-inference-ukulele-01",
+    "C:\\Users\\phani\\OneDrive\\Documents\\ChatGPT\\NNPBR\\NN-PBR\\runs\\ref\\0001-inference-ukulele-01"
+  ],
+  "groups": [
+    {
+      "group": 1,
+      "material": "ukulele-01",
+      "all_methods": false,
+      "missing": [
+        "ntc"
+      ]
+    }
+  ],
+  "issues": [
+    "ukulele-01 lacks ntc; fit or import these methods on the same source maps."
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "accepted": true,
+  "api": "InitiateSystemShutdownExW",
+  "timestamp_utc": "2026-11-26T06:25:58.337872+00:00",
+  "grace_seconds": 45,
+  "reboot": false,
+  "force_apps_closed": false
+}

@@ -1,0 +1,9 @@
+run,backend,device,samples,lod,median_ms,samples_per_second,peak_allocated_bytes
+Neural ASTC · 0002,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,"AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",32768,5.5,1.384300000154326,23671169.541535016,
+Neural ASTC · 0002,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,AMD Radeon RX 9070,32768,5.5,0.4821000099182129,67969299.57657336,83276800
+Neural ASTC · 0005,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,"AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",32768,5.5,1.7310999992332654,18929004.68748976,
+Neural ASTC · 0005,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,AMD Radeon RX 9070,32768,5.5,0.45521998405456543,71982780.07951476,49722368
+Local Neural BC6H · 0002,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,"AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",32768,5.5,12.298899999677815,2664303.311748075,
+Local Neural BC6H · 0002,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,AMD Radeon RX 9070,32768,5.5,5.154200077056885,6357533.566820897,46338560
+Uncompressed 2K reference · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,"AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",32768,5.5,6.9502000001193665,4714684.469430696,
+Uncompressed 2K reference · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,AMD Radeon RX 9070,32768,5.5,0.16212999820709229,202109420.60299474,183414272

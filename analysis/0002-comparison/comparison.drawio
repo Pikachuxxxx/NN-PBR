@@ -1,0 +1,163 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="workflow" name="Experiment workflow">
+    <mxGraphModel grid="1" gridSize="10" guides="1" connect="1" tooltips="1" arrows="1" page="0" pageWidth="1060" pageHeight="280" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Experiment workflow" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=29;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="5" y="5" width="1024" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="step0" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="6" y="53" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step0h" value="Source maps" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="56" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step0d" value="2K color, normal XY, ARM" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="94" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="362" y="53" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step1h" value="Fit or load" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="56" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step1d" value="Choose method and budget" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="94" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge1" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="step0" target="step1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step2" value="" style="shape=rectangle;rounded=0;fillColor=#E7F3EE;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="718" y="53" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step2h" value="Export" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="56" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step2d" value="Compressed bytes and decoder" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="94" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="step1" target="step2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step3" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="718" y="163" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step3h" value="Evaluate" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="166" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step3d" value="Reload on shared UVs and lights" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="204" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="step2" target="step3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step4" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="362" y="163" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step4h" value="Validate" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="166" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step4d" value="Check maps, hashes and protocol" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="204" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="step3" target="step4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step5" value="" style="shape=rectangle;rounded=0;fillColor=#E7F3EE;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="6" y="163" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step5h" value="Compare" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="166" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step5d" value="Tables, figures and missing methods" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="204" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="step4" target="step5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="architecture" name="Research code">
+    <mxGraphModel grid="1" gridSize="10" guides="1" connect="1" tooltips="1" arrows="1" page="0" pageWidth="1060" pageHeight="280" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Research code" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=29;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="5" y="5" width="1024" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="step0" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="6" y="53" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step0h" value="python -m nnpbr" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="56" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step0d" value="Training, inference or analysis" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="94" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="362" y="53" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step1h" value="research.py" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="56" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step1d" value="Run ID, config and environment" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="94" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge1" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="step0" target="step1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step2" value="" style="shape=rectangle;rounded=0;fillColor=#E7F3EE;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="718" y="53" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step2h" value="paper_methods.py" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="56" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step2d" value="Neural ASTC, BC6H, NTC, reference" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="94" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="step1" target="step2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step3" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="718" y="163" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step3h" value="paper_metrics.py" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="166" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step3d" value="Common errors and shaded views" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="720" y="204" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="step2" target="step3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step4" value="" style="shape=rectangle;rounded=0;fillColor=#EBF1F5;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="362" y="163" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step4h" value="research_analysis.py" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="166" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step4d" value="Group compatible measured exports" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="364" y="204" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="step3" target="step4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="step5" value="" style="shape=rectangle;rounded=0;fillColor=#E7F3EE;strokeColor=#526962;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="6" y="163" width="309" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="step5h" value="verify_tables.py" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=23;fontStyle=1;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="166" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="step5d" value="Rebuild the fixed paper cohort" style="fontFamily=Times New Roman;html=0;whiteSpace=wrap;align=center;verticalAlign=middle;spacing=0;align=center;shape=text;strokeColor=none;fillColor=none;fontSize=17;fontStyle=0;fontColor=#202529;" vertex="1" parent="1">
+          <mxGeometry x="8" y="204" width="305" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" style="edgeStyle=none;rounded=0;endArrow=block;endFill=1;endSize=9;strokeWidth=2;strokeColor=#566166;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="step4" target="step5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+<diagram id="results" name="Measured groups"><mxGraphModel grid="1"><root><mxCell id="0" /><mxCell id="1" parent="0" /><mxCell id="g1-0" parent="1" value="ukulele-01&#10;Neural ASTC · 0002&#10;28.101 weighted dB&#10;349,848 bytes" vertex="1" style="whiteSpace=wrap;rounded=0;fillColor=#e7f3ee;strokeColor=#526962;fontSize=14;"><mxGeometry x="0" y="15" width="215" height="100" as="geometry" /></mxCell><mxCell id="g1-1" parent="1" value="ukulele-01&#10;Neural ASTC · 0005&#10;28.106 weighted dB&#10;349,848 bytes" vertex="1" style="whiteSpace=wrap;rounded=0;fillColor=#e7f3ee;strokeColor=#526962;fontSize=14;"><mxGeometry x="225" y="15" width="215" height="100" as="geometry" /></mxCell><mxCell id="g1-2" parent="1" value="ukulele-01&#10;Local Neural BC6H · 0002&#10;27.336 weighted dB&#10;464,880 bytes" vertex="1" style="whiteSpace=wrap;rounded=0;fillColor=#e7f3ee;strokeColor=#526962;fontSize=14;"><mxGeometry x="450" y="15" width="215" height="100" as="geometry" /></mxCell><mxCell id="g1-3" parent="1" value="ukulele-01&#10;Uncompressed 2K reference · 0001&#10;exact weighted dB&#10;33,554,432 bytes" vertex="1" style="whiteSpace=wrap;rounded=0;fillColor=#e7f3ee;strokeColor=#526962;fontSize=14;"><mxGeometry x="675" y="15" width="215" height="100" as="geometry" /></mxCell></root></mxGraphModel></diagram></mxfile>

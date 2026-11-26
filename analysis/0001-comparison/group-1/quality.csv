@@ -1,0 +1,4 @@
+run,method,profile,seed,bytes,reads,mip0_db,weighted_db,filtered_db,flip,payload_bpp,compression_ratio
+C:\Users\phani\OneDrive\Documents\ChatGPT\NNPBR\NN-PBR\runs\neuralastc\0001-inference-ukulele-01,neuralastc,imported,,349848,1,27.809,28.101,29.311,0.098729457706213,0.6672821044921875,95.91145869063136
+C:\Users\phani\OneDrive\Documents\ChatGPT\NNPBR\NN-PBR\runs\ubisoft\0001-inference-ukulele-01,ubisoft,imported,,464880,4,27.047,27.336,30.361,0.0913891289383173,0.886688232421875,72.1786955773533
+C:\Users\phani\OneDrive\Documents\ChatGPT\NNPBR\NN-PBR\runs\ref\0001-inference-ukulele-01,ref,smoke,71,33554432,,exact,exact,exact,0.0,64.0,1.0

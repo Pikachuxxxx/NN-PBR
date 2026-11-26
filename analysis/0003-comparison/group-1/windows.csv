@@ -1,0 +1,16 @@
+run,window,lods,mean_mse,psnr_db
+Neural ASTC · 0001,"near [0,3.5)",28,0.001048097709177195,29.796
+Neural ASTC · 0001,"middle [3.5,6.5]",25,0.0009351056488230825,30.291
+Neural ASTC · 0001,"far (6.5,11]",36,0.0014327403979324219,28.438
+Neural ASTC · 0005,"near [0,3.5)",28,0.0010457413300173357,29.806
+Neural ASTC · 0005,"middle [3.5,6.5]",25,0.0009306236729025841,30.312
+Neural ASTC · 0005,"far (6.5,11]",36,0.0014337749404755111,28.435
+Neural ASTC · 0006,"near [0,3.5)",28,0.0010549273429205641,29.768
+Neural ASTC · 0006,"middle [3.5,6.5]",25,0.0009311395790427923,30.310
+Neural ASTC · 0006,"far (6.5,11]",36,0.0014232715378360201,28.467
+Local Neural BC6H · 0002,"near [0,3.5)",28,0.0011862187592279433,29.258
+Local Neural BC6H · 0002,"middle [3.5,6.5]",25,0.0005668316723313183,32.465
+Local Neural BC6H · 0002,"far (6.5,11]",36,0.0009585789496971605,30.184
+Uncompressed 2K reference · 0001,"near [0,3.5)",28,0.0,exact
+Uncompressed 2K reference · 0001,"middle [3.5,6.5]",25,0.0,exact
+Uncompressed 2K reference · 0001,"far (6.5,11]",36,0.0,exact

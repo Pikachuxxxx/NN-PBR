@@ -1,0 +1,19 @@
+{
+  "counts": {
+    "BC6H exports, v5": 67,
+    "ASTC exports, material.json": 956,
+    "ASTC exports, legacy v1": 28,
+    "KTX mobile packages": 18,
+    "verified standardized run manifests": 10,
+    "complete extended-run checkpoints": 2
+  },
+  "errors": [],
+  "extended_reload": "12 dense MSE, 89 filtered MSE, four appearance records and five maps exactly reproduced",
+  "scope": [
+    "runs",
+    "models",
+    "paper/measurements"
+  ],
+  "legacy_check": "Archived target8 includes a 5x4 rectangular ASTC image. Used its declared x and y footprints to check every header, byte count and independent mip decode.",
+  "static_ios": "C++ Vulkan demo built, vertex and fragment SPIR-V validated and translated to iOS MSL, stage linkage and descriptor ABI checked. iOS build and runtime pending."
+}

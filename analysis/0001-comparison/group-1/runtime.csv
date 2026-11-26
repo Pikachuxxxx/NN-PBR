@@ -1,0 +1,7 @@
+run,backend,device,samples,lod,median_ms,samples_per_second,peak_allocated_bytes
+neuralastc · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,"AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",32768,5.5,1.6412999998465239,19964662.159912325,
+neuralastc · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,AMD Radeon RX 9070,32768,5.5,0.4026300013065338,81384894.05575313,49722368
+ubisoft · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,"AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",32768,5.5,12.019100000088656,2726327.2624205053,
+ubisoft · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,AMD Radeon RX 9070,32768,5.5,6.105100154876709,5367315.714521925,46338560
+ref · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,"AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",32768,5.5,6.9502000001193665,4714684.469430696,
+ref · 0001,PyTorch sampling of resident decoded levels; GPU times use device events. Reference uses bicubic filtering.,AMD Radeon RX 9070,32768,5.5,0.16212999820709229,202109420.60299474,183414272

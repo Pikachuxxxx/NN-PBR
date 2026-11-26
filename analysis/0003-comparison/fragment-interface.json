@@ -1,0 +1,63 @@
+{
+    "entryPoints" : [
+        {
+            "name" : "main",
+            "mode" : "frag"
+        }
+    ],
+    "types" : {
+        "_27" : {
+            "name" : "Decoder",
+            "members" : [
+                {
+                    "name" : "packed",
+                    "type" : "uvec4",
+                    "array" : [
+                        21
+                    ],
+                    "array_size_is_literal" : [
+                        true
+                    ],
+                    "offset" : 0,
+                    "array_stride" : 16
+                }
+            ]
+        }
+    },
+    "inputs" : [
+        {
+            "type" : "vec2",
+            "name" : "uv",
+            "location" : 0
+        }
+    ],
+    "outputs" : [
+        {
+            "type" : "vec4",
+            "name" : "albedoNormalX",
+            "location" : 0
+        },
+        {
+            "type" : "vec4",
+            "name" : "normalYAndORM",
+            "location" : 1
+        }
+    ],
+    "textures" : [
+        {
+            "type" : "sampler2D",
+            "name" : "latent",
+            "set" : 0,
+            "binding" : 0
+        }
+    ],
+    "ubos" : [
+        {
+            "type" : "_27",
+            "name" : "Decoder",
+            "block_size" : 336,
+            "set" : 0,
+            "binding" : 1
+        }
+    ]
+}

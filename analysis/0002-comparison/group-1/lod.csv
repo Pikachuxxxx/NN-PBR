@@ -1,0 +1,405 @@
+run,kind,lod,mse,psnr_db
+Neural ASTC · 0002,filtered,0.0,0.0015870489878579974,27.994
+Neural ASTC · 0002,filtered,0.125,0.001507971086539328,28.216
+Neural ASTC · 0002,filtered,0.25,0.0014377913903445005,28.423
+Neural ASTC · 0002,filtered,0.375,0.001376509666442871,28.612
+Neural ASTC · 0002,filtered,0.5,0.0013241261476650834,28.781
+Neural ASTC · 0002,filtered,0.625,0.0012806407175958157,28.926
+Neural ASTC · 0002,filtered,0.75,0.0012460533762350678,29.045
+Neural ASTC · 0002,filtered,0.875,0.00122036412358284,29.135
+Neural ASTC · 0002,filtered,1.0,0.0012035728432238102,29.195
+Neural ASTC · 0002,filtered,1.125,0.001129161799326539,29.472
+Neural ASTC · 0002,filtered,1.25,0.001065399032086134,29.725
+Neural ASTC · 0002,filtered,1.375,0.0010122847743332386,29.947
+Neural ASTC · 0002,filtered,1.5,0.0009698189678601921,30.133
+Neural ASTC · 0002,filtered,1.625,0.0009380017872899771,30.278
+Neural ASTC · 0002,filtered,1.75,0.0009168329415842891,30.377
+Neural ASTC · 0002,filtered,1.875,0.0009063126053661108,30.427
+Neural ASTC · 0002,filtered,2.0,0.0009064407204277813,30.427
+Neural ASTC · 0002,filtered,2.125,0.0008616084815002978,30.647
+Neural ASTC · 0002,filtered,2.25,0.0008390764705836773,30.762
+Neural ASTC · 0002,filtered,2.375,0.0008318839827552438,30.799
+Neural ASTC · 0002,filtered,2.5,0.0008337971521541476,30.789
+Neural ASTC · 0002,filtered,2.625,0.0008423196850344539,30.745
+Neural ASTC · 0002,filtered,2.75,0.0008572201477363706,30.669
+Neural ASTC · 0002,filtered,2.875,0.0008872090838849545,30.520
+Neural ASTC · 0002,filtered,3.0,0.0009358155075460672,30.288
+Neural ASTC · 0002,filtered,3.125,0.0008655514102429152,30.627
+Neural ASTC · 0002,filtered,3.25,0.000825276249088347,30.834
+Neural ASTC · 0002,filtered,3.375,0.0008123642764985561,30.902
+Neural ASTC · 0002,filtered,3.5,0.0008200861047953367,30.861
+Neural ASTC · 0002,filtered,3.625,0.0008470250759273767,30.721
+Neural ASTC · 0002,filtered,3.75,0.0008906371658667922,30.503
+Neural ASTC · 0002,filtered,3.875,0.0009521405445411801,30.213
+Neural ASTC · 0002,filtered,4.0,0.001036779023706913,29.843
+Neural ASTC · 0002,filtered,4.125,0.0009289904264733195,30.320
+Neural ASTC · 0002,filtered,4.25,0.0008656523423269391,30.627
+Neural ASTC · 0002,filtered,4.375,0.0008404735708609223,30.755
+Neural ASTC · 0002,filtered,4.5,0.000849538017064333,30.708
+Neural ASTC · 0002,filtered,4.625,0.0008839924121275544,30.536
+Neural ASTC · 0002,filtered,4.75,0.0009431916987523437,30.254
+Neural ASTC · 0002,filtered,4.875,0.0010291909566149116,29.875
+Neural ASTC · 0002,filtered,5.0,0.0011483936104923487,29.399
+Neural ASTC · 0002,filtered,5.125,0.0009954319102689624,30.020
+Neural ASTC · 0002,filtered,5.25,0.0009022781159728765,30.447
+Neural ASTC · 0002,filtered,5.375,0.0008640666492283344,30.635
+Neural ASTC · 0002,filtered,5.5,0.0008676823927089572,30.616
+Neural ASTC · 0002,filtered,5.625,0.0009033579262904823,30.441
+Neural ASTC · 0002,filtered,5.75,0.0009726373828016222,30.120
+Neural ASTC · 0002,filtered,5.875,0.0010826087091118097,29.655
+Neural ASTC · 0002,filtered,6.0,0.0012383541325107217,29.072
+Neural ASTC · 0002,filtered,6.125,0.0010374735575169325,29.840
+Neural ASTC · 0002,filtered,6.25,0.0009061099262908101,30.428
+Neural ASTC · 0002,filtered,6.375,0.0008384542888961732,30.765
+Neural ASTC · 0002,filtered,6.5,0.0008255981374531984,30.832
+Neural ASTC · 0002,filtered,6.625,0.0008638426661491394,30.636
+Neural ASTC · 0002,filtered,6.75,0.0009454499231651425,30.244
+Neural ASTC · 0002,filtered,6.875,0.0010836361907422543,29.651
+Neural ASTC · 0002,filtered,7.0,0.0012953199911862612,28.876
+Neural ASTC · 0002,filtered,7.125,0.0010648001916706562,29.727
+Neural ASTC · 0002,filtered,7.25,0.000930845970287919,30.311
+Neural ASTC · 0002,filtered,7.375,0.0008831602754071355,30.540
+Neural ASTC · 0002,filtered,7.5,0.0009180358611047268,30.371
+Neural ASTC · 0002,filtered,7.625,0.001036177040077746,29.846
+Neural ASTC · 0002,filtered,7.75,0.001235094154253602,29.083
+Neural ASTC · 0002,filtered,7.875,0.0015080876182764769,28.216
+Neural ASTC · 0002,filtered,8.0,0.0018466620240360498,27.336
+Neural ASTC · 0002,filtered,8.125,0.0013516171602532268,28.691
+Neural ASTC · 0002,filtered,8.25,0.0010976837947964668,29.595
+Neural ASTC · 0002,filtered,8.375,0.001070761471055448,29.703
+Neural ASTC · 0002,filtered,8.5,0.0012509414227679372,29.028
+Neural ASTC · 0002,filtered,8.625,0.0016579274088144302,27.804
+Neural ASTC · 0002,filtered,8.75,0.002267794217914343,26.444
+Neural ASTC · 0002,filtered,8.875,0.003141184104606509,25.029
+Neural ASTC · 0002,filtered,9.0,0.004463528282940388,23.503
+Neural ASTC · 0002,filtered,9.125,0.0033515493851155043,24.748
+Neural ASTC · 0002,filtered,9.25,0.0024219779297709465,26.158
+Neural ASTC · 0002,filtered,9.375,0.0016748139169067144,27.760
+Neural ASTC · 0002,filtered,9.5,0.0011100571136921644,29.547
+Neural ASTC · 0002,filtered,9.625,0.0007277078693732619,31.380
+Neural ASTC · 0002,filtered,9.75,0.0005277660093270242,32.776
+Neural ASTC · 0002,filtered,9.875,0.0005102315335534513,32.922
+Neural ASTC · 0002,filtered,10.0,0.0006751045002602041,31.706
+Neural ASTC · 0002,filtered,10.125,0.0006013785605318844,32.209
+Neural ASTC · 0002,filtered,10.25,0.0006196867325343192,32.078
+Neural ASTC · 0002,filtered,10.375,0.0007300288998521864,31.367
+Neural ASTC · 0002,filtered,10.5,0.0009324051206931472,30.304
+Neural ASTC · 0002,filtered,10.625,0.0012268153950572014,29.112
+Neural ASTC · 0002,filtered,10.75,0.00161325978115201,27.923
+Neural ASTC · 0002,filtered,10.875,0.0020917383953928947,26.795
+Neural ASTC · 0002,filtered,11.0,0.0026622505392879248,25.748
+Neural ASTC · 0002,texel centers,0,0.0016558806728355357,27.810
+Neural ASTC · 0002,texel centers,1,0.0012579152247221006,29.003
+Neural ASTC · 0002,texel centers,2,0.001120770447359907,29.505
+Neural ASTC · 0002,texel centers,3,0.0010874802320818523,29.636
+Neural ASTC · 0002,texel centers,4,0.0013130376324144047,28.817
+Neural ASTC · 0002,texel centers,5,0.001546081522239397,28.108
+Neural ASTC · 0002,texel centers,6,0.0017832653672958277,27.488
+Neural ASTC · 0002,texel centers,7,0.0019119848947482083,27.185
+Neural ASTC · 0002,texel centers,8,0.002623938217503362,25.810
+Neural ASTC · 0002,texel centers,9,0.005045266705572371,22.971
+Neural ASTC · 0002,texel centers,10,0.00032409447200043573,34.893
+Neural ASTC · 0002,texel centers,11,0.0013018497304519983,28.854
+Neural ASTC · 0005,filtered,0.0,0.0015801024856045842,28.013
+Neural ASTC · 0005,filtered,0.125,0.0015012230724096298,28.236
+Neural ASTC · 0005,filtered,0.25,0.0014312417479231954,28.443
+Neural ASTC · 0005,filtered,0.375,0.0013701585121452808,28.632
+Neural ASTC · 0005,filtered,0.5,0.0013179733650758862,28.801
+Neural ASTC · 0005,filtered,0.625,0.0012746863067150116,28.946
+Neural ASTC · 0005,filtered,0.75,0.0012402974534779787,29.065
+Neural ASTC · 0005,filtered,0.875,0.0012148066889494658,29.155
+Neural ASTC · 0005,filtered,1.0,0.0011982140131294727,29.215
+Neural ASTC · 0005,filtered,1.125,0.0011238798033446074,29.493
+Neural ASTC · 0005,filtered,1.25,0.0010601941030472517,29.746
+Neural ASTC · 0005,filtered,1.375,0.0010071570286527276,29.969
+Neural ASTC · 0005,filtered,1.5,0.0009647682891227305,30.156
+Neural ASTC · 0005,filtered,1.625,0.000933028117287904,30.301
+Neural ASTC · 0005,filtered,1.75,0.0009119363385252655,30.400
+Neural ASTC · 0005,filtered,1.875,0.0009014930110424757,30.450
+Neural ASTC · 0005,filtered,2.0,0.0009016982512548566,30.449
+Neural ASTC · 0005,filtered,2.125,0.000857180857565254,30.669
+Neural ASTC · 0005,filtered,2.25,0.0008345383685082197,30.786
+Neural ASTC · 0005,filtered,2.375,0.0008271534461528063,30.824
+Neural ASTC · 0005,filtered,2.5,0.0008306072559207678,30.806
+Neural ASTC · 0005,filtered,2.625,0.0008399391081184149,30.758
+Neural ASTC · 0005,filtered,2.75,0.0008547527249902487,30.682
+Neural ASTC · 0005,filtered,2.875,0.0008833323372527957,30.539
+Neural ASTC · 0005,filtered,3.0,0.0009314202470704913,30.309
+Neural ASTC · 0005,filtered,3.125,0.0008608570788055658,30.651
+Neural ASTC · 0005,filtered,3.25,0.0008205646881833673,30.859
+Neural ASTC · 0005,filtered,3.375,0.0008075525402091444,30.928
+Neural ASTC · 0005,filtered,3.5,0.000815186882391572,30.887
+Neural ASTC · 0005,filtered,3.625,0.0008417069911956787,30.748
+Neural ASTC · 0005,filtered,3.75,0.0008848101715557277,30.531
+Neural ASTC · 0005,filtered,3.875,0.0009463746100664139,30.239
+Neural ASTC · 0005,filtered,4.0,0.001031790510751307,29.864
+Neural ASTC · 0005,filtered,4.125,0.0009243856184184551,30.341
+Neural ASTC · 0005,filtered,4.25,0.0008613223326392472,30.648
+Neural ASTC · 0005,filtered,4.375,0.0008356721373274922,30.780
+Neural ASTC · 0005,filtered,4.5,0.000842846289742738,30.743
+Neural ASTC · 0005,filtered,4.625,0.000876108359079808,30.574
+Neural ASTC · 0005,filtered,4.75,0.0009332465706393123,30.300
+Neural ASTC · 0005,filtered,4.875,0.0010168016888201237,29.928
+Neural ASTC · 0005,filtered,5.0,0.0011339224874973297,29.454
+Neural ASTC · 0005,filtered,5.125,0.0009834147058427334,30.073
+Neural ASTC · 0005,filtered,5.25,0.0008925847942009568,30.494
+Neural ASTC · 0005,filtered,5.375,0.0008549355552531779,30.681
+Neural ASTC · 0005,filtered,5.5,0.0008584280731156468,30.663
+Neural ASTC · 0005,filtered,5.625,0.0008959216065704823,30.477
+Neural ASTC · 0005,filtered,5.75,0.0009660081123001873,30.150
+Neural ASTC · 0005,filtered,5.875,0.0010742226149886847,29.689
+Neural ASTC · 0005,filtered,6.0,0.001231356174685061,29.096
+Neural ASTC · 0005,filtered,6.125,0.0010283335577696562,29.879
+Neural ASTC · 0005,filtered,6.25,0.0008948337635956705,30.483
+Neural ASTC · 0005,filtered,6.375,0.0008260380127467215,30.830
+Neural ASTC · 0005,filtered,6.5,0.0008153402013704181,30.887
+Neural ASTC · 0005,filtered,6.625,0.0008553494699299335,30.679
+Neural ASTC · 0005,filtered,6.75,0.000946112209931016,30.241
+Neural ASTC · 0005,filtered,6.875,0.0010968171991407871,29.599
+Neural ASTC · 0005,filtered,7.0,0.001312899636104703,28.818
+Neural ASTC · 0005,filtered,7.125,0.0010816259309649467,29.659
+Neural ASTC · 0005,filtered,7.25,0.0009429133497178555,30.255
+Neural ASTC · 0005,filtered,7.375,0.0008886924479156733,30.512
+Neural ASTC · 0005,filtered,7.5,0.0009158095344901085,30.382
+Neural ASTC · 0005,filtered,7.625,0.0010236436501145363,29.899
+Neural ASTC · 0005,filtered,7.75,0.0012110453099012375,29.168
+Neural ASTC · 0005,filtered,7.875,0.001472461735829711,28.320
+Neural ASTC · 0005,filtered,8.0,0.0017975171795114875,27.453
+Neural ASTC · 0005,filtered,8.125,0.001322633819654584,28.786
+Neural ASTC · 0005,filtered,8.25,0.0010890534613281488,29.630
+Neural ASTC · 0005,filtered,8.375,0.0010810457170009613,29.662
+Neural ASTC · 0005,filtered,8.5,0.0012803690042346716,28.927
+Neural ASTC · 0005,filtered,8.625,0.0017046837601810694,27.684
+Neural ASTC · 0005,filtered,8.75,0.0023251345846801996,26.336
+Neural ASTC · 0005,filtered,8.875,0.0031859721057116985,24.968
+Neural ASTC · 0005,filtered,9.0,0.00450480729341507,23.463
+Neural ASTC · 0005,filtered,9.125,0.0033909345511347055,24.697
+Neural ASTC · 0005,filtered,9.25,0.0024594690185040236,26.092
+Neural ASTC · 0005,filtered,9.375,0.0017104109283536673,27.669
+Neural ASTC · 0005,filtered,9.5,0.0011437602806836367,29.417
+Neural ASTC · 0005,filtered,9.625,0.0007595168426632881,31.195
+Neural ASTC · 0005,filtered,9.75,0.0005576809635385871,32.536
+Neural ASTC · 0005,filtered,9.875,0.0005382524104788899,32.690
+Neural ASTC · 0005,filtered,10.0,0.0007012312998995185,31.541
+Neural ASTC · 0005,filtered,10.125,0.0006172130815684795,32.096
+Neural ASTC · 0005,filtered,10.25,0.000625228916760534,32.040
+Neural ASTC · 0005,filtered,10.375,0.0007252787472680211,31.395
+Neural ASTC · 0005,filtered,10.5,0.0009173626312986016,30.375
+Neural ASTC · 0005,filtered,10.625,0.0012014806270599365,29.203
+Neural ASTC · 0005,filtered,10.75,0.001577632618136704,28.020
+Neural ASTC · 0005,filtered,10.875,0.002045818604528904,26.891
+Neural ASTC · 0005,filtered,11.0,0.002606038935482502,25.840
+Neural ASTC · 0005,texel centers,0,0.0016542319692247995,27.814
+Neural ASTC · 0005,texel centers,1,0.0012562112333434614,29.009
+Neural ASTC · 0005,texel centers,2,0.0011166350107540213,29.521
+Neural ASTC · 0005,texel centers,3,0.0010803249360406275,29.664
+Neural ASTC · 0005,texel centers,4,0.0013075922919810125,28.835
+Neural ASTC · 0005,texel centers,5,0.0015283704105175675,28.158
+Neural ASTC · 0005,texel centers,6,0.001768643976339108,27.524
+Neural ASTC · 0005,texel centers,7,0.0018755274106149675,27.269
+Neural ASTC · 0005,texel centers,8,0.002559634535895028,25.918
+Neural ASTC · 0005,texel centers,9,0.005050711936158914,22.966
+Neural ASTC · 0005,texel centers,10,0.00035599800485286437,34.486
+Neural ASTC · 0005,texel centers,11,0.0013840989964055694,28.588
+Local Neural BC6H · 0002,filtered,0.0,0.0019069594563916326,27.197
+Local Neural BC6H · 0002,filtered,0.125,0.0018233951414003968,27.391
+Local Neural BC6H · 0002,filtered,0.25,0.0017487290315330029,27.573
+Local Neural BC6H · 0002,filtered,0.375,0.001682960893958807,27.739
+Local Neural BC6H · 0002,filtered,0.5,0.0016260910779237747,27.889
+Local Neural BC6H · 0002,filtered,0.625,0.0015781191177666187,28.019
+Local Neural BC6H · 0002,filtered,0.75,0.0015390454791486263,28.127
+Local Neural BC6H · 0002,filtered,0.875,0.0015088699292391539,28.213
+Local Neural BC6H · 0002,filtered,1.0,0.0014875922352075577,28.275
+Local Neural BC6H · 0002,filtered,1.125,0.0013968029525130987,28.549
+Local Neural BC6H · 0002,filtered,1.25,0.001316661830060184,28.805
+Local Neural BC6H · 0002,filtered,1.375,0.001247169217094779,29.041
+Local Neural BC6H · 0002,filtered,1.5,0.0011883251136168838,29.251
+Local Neural BC6H · 0002,filtered,1.625,0.0011401295196264982,29.430
+Local Neural BC6H · 0002,filtered,1.75,0.0011025824351236224,29.576
+Local Neural BC6H · 0002,filtered,1.875,0.0010756837436929345,29.683
+Local Neural BC6H · 0002,filtered,2.0,0.0010594335617497563,29.749
+Local Neural BC6H · 0002,filtered,2.125,0.0009631688008084893,30.163
+Local Neural BC6H · 0002,filtered,2.25,0.0008873066981323063,30.519
+Local Neural BC6H · 0002,filtered,2.375,0.0008316595340147614,30.801
+Local Neural BC6H · 0002,filtered,2.5,0.0007962721865624189,30.989
+Local Neural BC6H · 0002,filtered,2.625,0.0007810195093043149,31.073
+Local Neural BC6H · 0002,filtered,2.75,0.000785844458732754,31.047
+Local Neural BC6H · 0002,filtered,2.875,0.0008109206100925803,30.910
+Local Neural BC6H · 0002,filtered,3.0,0.0008563868468627334,30.673
+Local Neural BC6H · 0002,filtered,3.125,0.0007544845575466752,31.223
+Local Neural BC6H · 0002,filtered,3.25,0.0006815376691520214,31.665
+Local Neural BC6H · 0002,filtered,3.375,0.0006369736511260271,31.959
+Local Neural BC6H · 0002,filtered,3.5,0.0006209288258105516,32.070
+Local Neural BC6H · 0002,filtered,3.625,0.0006333416095003486,31.984
+Local Neural BC6H · 0002,filtered,3.75,0.0006744458805769682,31.711
+Local Neural BC6H · 0002,filtered,3.875,0.0007444183574989438,31.282
+Local Neural BC6H · 0002,filtered,4.0,0.0008436526986770332,30.738
+Local Neural BC6H · 0002,filtered,4.125,0.0007090511498972774,31.493
+Local Neural BC6H · 0002,filtered,4.25,0.0006121312617324293,32.132
+Local Neural BC6H · 0002,filtered,4.375,0.0005519194528460503,32.581
+Local Neural BC6H · 0002,filtered,4.5,0.00052745605353266,32.778
+Local Neural BC6H · 0002,filtered,4.625,0.0005384925752878189,32.688
+Local Neural BC6H · 0002,filtered,4.75,0.0005850810557603836,32.328
+Local Neural BC6H · 0002,filtered,4.875,0.000668118242174387,31.751
+Local Neural BC6H · 0002,filtered,5.0,0.0007887465180829167,31.031
+Local Neural BC6H · 0002,filtered,5.125,0.0006119308527559042,32.133
+Local Neural BC6H · 0002,filtered,5.25,0.0004840687324758619,33.151
+Local Neural BC6H · 0002,filtered,5.375,0.0004022874345537275,33.955
+Local Neural BC6H · 0002,filtered,5.5,0.000366687512723729,34.357
+Local Neural BC6H · 0002,filtered,5.625,0.00037788221379742026,34.226
+Local Neural BC6H · 0002,filtered,5.75,0.000435874389950186,33.606
+Local Neural BC6H · 0002,filtered,5.875,0.0005414175102487206,32.665
+Local Neural BC6H · 0002,filtered,6.0,0.0006963412743061781,31.572
+Local Neural BC6H · 0002,filtered,6.125,0.0005476706428453326,32.615
+Local Neural BC6H · 0002,filtered,6.25,0.00044570048339664936,33.510
+Local Neural BC6H · 0002,filtered,6.375,0.0003884148027282208,34.107
+Local Neural BC6H · 0002,filtered,6.5,0.0003747322771232575,34.263
+Local Neural BC6H · 0002,filtered,6.625,0.0004042729560751468,33.933
+Local Neural BC6H · 0002,filtered,6.75,0.00047743244795128703,33.211
+Local Neural BC6H · 0002,filtered,6.875,0.0005941014969721437,32.261
+Local Neural BC6H · 0002,filtered,7.0,0.000755151326302439,31.220
+Local Neural BC6H · 0002,filtered,7.125,0.0005872368346899748,32.312
+Local Neural BC6H · 0002,filtered,7.25,0.00046534123248420656,33.322
+Local Neural BC6H · 0002,filtered,7.375,0.00039301736978814006,34.056
+Local Neural BC6H · 0002,filtered,7.5,0.0003707657742779702,34.309
+Local Neural BC6H · 0002,filtered,7.625,0.0003979431348852813,34.002
+Local Neural BC6H · 0002,filtered,7.75,0.00047385584912262857,33.244
+Local Neural BC6H · 0002,filtered,7.875,0.0005991453072056174,32.225
+Local Neural BC6H · 0002,filtered,8.0,0.0007745447219349444,31.110
+Local Neural BC6H · 0002,filtered,8.125,0.0005393184255808592,32.682
+Local Neural BC6H · 0002,filtered,8.25,0.00043722568079829216,33.593
+Local Neural BC6H · 0002,filtered,8.375,0.0004746208433061838,33.237
+Local Neural BC6H · 0002,filtered,8.5,0.0006595867453143001,31.807
+Local Neural BC6H · 0002,filtered,8.625,0.001021654694341123,29.907
+Local Neural BC6H · 0002,filtered,8.75,0.001570934196934104,28.038
+Local Neural BC6H · 0002,filtered,8.875,0.0023469359148293734,26.295
+Local Neural BC6H · 0002,filtered,9.0,0.0033843093551695347,24.705
+Local Neural BC6H · 0002,filtered,9.125,0.0024225260131061077,26.157
+Local Neural BC6H · 0002,filtered,9.25,0.0016431501135230064,27.843
+Local Neural BC6H · 0002,filtered,9.375,0.0010461814235895872,29.804
+Local Neural BC6H · 0002,filtered,9.5,0.0006316201761364937,31.995
+Local Neural BC6H · 0002,filtered,9.625,0.0003994664002675563,33.985
+Local Neural BC6H · 0002,filtered,9.75,0.0003497200086712837,34.563
+Local Neural BC6H · 0002,filtered,9.875,0.00048238097224384546,33.166
+Local Neural BC6H · 0002,filtered,10.0,0.0007974494365043938,30.983
+Local Neural BC6H · 0002,filtered,10.125,0.0006835188250988722,31.652
+Local Neural BC6H · 0002,filtered,10.25,0.000661622267216444,31.794
+Local Neural BC6H · 0002,filtered,10.375,0.0007317597046494484,31.356
+Local Neural BC6H · 0002,filtered,10.5,0.0008939311956055462,30.487
+Local Neural BC6H · 0002,filtered,10.625,0.0011481367982923985,29.400
+Local Neural BC6H · 0002,filtered,10.75,0.0014943764545023441,28.255
+Local Neural BC6H · 0002,filtered,10.875,0.0019326501060277224,27.138
+Local Neural BC6H · 0002,filtered,11.0,0.002462957985699177,26.085
+Local Neural BC6H · 0002,texel centers,0,0.001973694049925653,27.047
+Local Neural BC6H · 0002,texel centers,1,0.0015430302333358816,28.116
+Local Neural BC6H · 0002,texel centers,2,0.001243511225259967,29.054
+Local Neural BC6H · 0002,texel centers,3,0.001183084108178635,29.270
+Local Neural BC6H · 0002,texel centers,4,0.001270547389919852,28.960
+Local Neural BC6H · 0002,texel centers,5,0.0013292550405661408,28.764
+Local Neural BC6H · 0002,texel centers,6,0.0012765914228161672,28.939
+Local Neural BC6H · 0002,texel centers,7,0.001283940190689926,28.915
+Local Neural BC6H · 0002,texel centers,8,0.0013274401056081152,28.770
+Local Neural BC6H · 0002,texel centers,9,0.0033097336799166044,24.802
+Local Neural BC6H · 0002,texel centers,10,0.00036839299894442235,34.337
+Local Neural BC6H · 0002,texel centers,11,0.000955009669830531,30.200
+Uncompressed 2K reference · 0001,filtered,0.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,0.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,0.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,0.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,0.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,0.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,0.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,0.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,1.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,2.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,3.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,4.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,5.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,6.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,7.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,8.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,9.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.0,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.125,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.25,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.375,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.5,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.625,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.75,0.0,exact
+Uncompressed 2K reference · 0001,filtered,10.875,0.0,exact
+Uncompressed 2K reference · 0001,filtered,11.0,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,0,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,1,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,2,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,3,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,4,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,5,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,6,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,7,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,8,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,9,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,10,0.0,exact
+Uncompressed 2K reference · 0001,texel centers,11,0.0,exact
